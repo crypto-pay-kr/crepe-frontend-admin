@@ -92,12 +92,6 @@ export function Sidebar() {
               exact={true}
             />
             <NavItem 
-              href="/management/registration" 
-              icon={Users} 
-              label="등록대기 리스트" 
-              exact={true}
-            />
-            <NavItem 
               href="/management/user" 
               icon={User} 
               label="유저" 
@@ -108,6 +102,12 @@ export function Sidebar() {
               icon={Store} 
               label="가맹점" 
               exact={false}
+            />
+            <NavItem 
+              href="/management/registration" 
+              icon={Users} 
+              label="등록대기 리스트" 
+              exact={true}
             />
           </>
         )}
