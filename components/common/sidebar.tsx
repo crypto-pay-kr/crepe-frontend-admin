@@ -77,7 +77,7 @@ export function Sidebar() {
               exact={true}
             />
             <NavItem 
-              href="/bank/waiting-list" 
+              href="/bank/registration" 
               icon={Users} 
               label="등록대기 리스트" 
               exact={true}

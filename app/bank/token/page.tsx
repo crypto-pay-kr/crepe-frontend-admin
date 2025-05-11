@@ -149,14 +149,14 @@ export default function BankTokenRequests() {
                       <div className="flex justify-end gap-2">
                         <button
                           onClick={() => handleReject(request.bank, request.type)}
-                          className="px-3 py-1.5 rounded-md text-sm font-medium border border-pink-500 bg-pink-500 text-white hover:bg-pink-600 transition-all flex items-center gap-1.5 cursor-pointer"
+                          className="px-3 py-1.5 rounded-md text-sm font-medium border  border-gray-300 text-gray-600 hover:bg-gray-50 transition-all flex items-center gap-1.5 cursor-pointer"
                         >
                           <X size={14} /> 반려
                         </button>
                         
                         <button
                           onClick={() => handleConfirm(request.bank, request.type)}
-                          className="px-3 py-1.5 rounded-md text-sm font-medium border border-gray-300 text-gray-600 hover:bg-gray-50 transition-all flex items-center gap-1.5 cursor-pointer"
+                          className="px-3 py-1.5 rounded-md text-sm font-medium border border-pink-500 bg-pink-500 text-white hover:bg-pink-600 transition-all flex items-center gap-1.5 cursor-pointer"
                         >
                           <Check size={14} /> 요청 확인
                         </button>
