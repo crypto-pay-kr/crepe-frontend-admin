@@ -64,10 +64,10 @@ export default function BankDashBoard() {
           </div>
 
           <div className="space-y-6">
-            <CoinUsageBar coin="XRP(리플)" value={121799} maxValue={150000} color="from-pink-500 to-rose-400" />
-            <CoinUsageBar coin="USDT(테더)" value={50799} maxValue={150000} />
-            <CoinUsageBar coin="SOL(솔라나)" value={25567} maxValue={150000} />
-            <CoinUsageBar coin="KRWT(K-테더)" value={5789} maxValue={150000} />
+            <CoinUsageBar coin="XRP(리플)" value={121799} maxValue={150000} color="from-green-500 to-emerald-400" />
+            <CoinUsageBar coin="USDT(테더)" value={50799} maxValue={150000} color="from-blue-500 to-cyan-400" />
+            <CoinUsageBar coin="SOL(솔라나)" value={25567} maxValue={150000} color="from-violet-500 to-purple-400" />
+            <CoinUsageBar coin="KRWT(K-테더)" value={5789} maxValue={150000} color="from-pink-500 to-rose-400" />
           </div>
         </div>
       </div>

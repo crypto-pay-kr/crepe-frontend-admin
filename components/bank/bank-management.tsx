@@ -3,7 +3,8 @@ import { Search, ChevronLeft, ChevronRight, Filter, PlusCircle, Ban, CreditCard 
 import Link from "next/link"
 import { useState } from "react"
 import type React from "react"
-import { ConfirmationModal } from "../common/confirm-modal" // 또는 improved-confirm-modal
+import { ConfirmationModal } from "../common/confirm-modal"
+import AddBankModal from "./add-bank-modal" // AddBankModal 추가
 
 // 은행 데이터 인터페이스 정의
 interface Bank {
@@ -280,6 +281,13 @@ export default function BankManagement({ onShowSuspendedList }: BankManagementPr
           </div>
         </div>
       </div>
+
+      {/* 은행 추가 모달 */}
+      <AddBankModal 
+        isOpen={addModalOpen} 
+        onClose={closeAddModal} 
+        onSubmit={handleAddBank} 
+      />
 
       {/* 은행 정지 확인 모달 */}
       <ConfirmationModal

@@ -1,63 +1,118 @@
 'use client'
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { Landmark, ClipboardCheck } from "lucide-react"
 import WaitingListComponent, { WaitingListItem } from "@/components/common/waiting-list"
+import { ConfirmationModal } from "@/components/common/confirm-modal";
+import MerchantInfoModal from "@/components/bank/store-info-modal";
+import UpbitLoginModal from "@/components/bank/upbit-login-modal";
 
-// 은행 토큰 요청에 필요한 추가 필드 정의
-interface BankTokenRequest {
-  bank: string;
-  reason: string;
-  type: string;
-  tokenChanges?: {
-    symbol: string;
-    oldValue: string;
-    newValue: string;
-    status: string;
-    statusType: "increase" | "decrease" | "new";
-  }[];
-  tokenValues?: {
-    value: string;
-    change?: string;
-    changeType?: "increase" | "decrease";
-  }[];
+// 은행 계좌 등록에 필요한 추가 필드 정의
+interface BankAccountRegistration {
+  depositorName: string;
+  userType: string;
+  coin: string;
+  accountNumber: string;
+  accountNumber2: string;
 }
 
-export default function BankTokenRequestPage() {
+export default function BankAccountRegistrationPage() {
   const [isBulkModalOpen, setBulkModalOpen] = useState(false);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [showMerchantModal, setShowMerchantModal] = useState(false);
+  const [showUpbitModal, setShowUpbitModal] = useState(false);
+  const [isLoadingAuthentication, setIsLoadingAuthentication] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<WaitingListItem<BankAccountRegistration> | null>(null);
   
   // 실제 데이터는 API에서 불러올 것이므로 useState로 관리
   const [waitingListItems, setWaitingListItems] = useState(
     // 기존 데이터를 새로운 형식으로 변환
-    tokenRequests.map(item => ({
+    bankAccountRequests.map(item => ({
       id: item.id,
-      requestDate: item.date,
-      name: item.bank, // 공통 필드인 name으로 매핑
-      type: item.type, // 공통 필드인 type으로 매핑
-      approveType: "approve",
-      approveButtonText: "요청 확인",
-      bank: item.bank,
-      reason: item.reason,
-      tokenChanges: item.id === 1 ? sampleTokenChanges : undefined, // 예시 데이터
-      tokenValues: item.id === 1 ? sampleTokenValues : undefined, // 예시 데이터
+      requestDate: item.requestDate,
+      name: item.depositorName, // 공통 필드인 name으로 매핑
+      type: item.userType, // 공통 필드인 type으로 매핑
+      approveType: item.approveType,
+      approveButtonText: item.approveButtonText,
+      depositorName: item.depositorName,
+      userType: item.userType,
+      coin: item.coin,
+      accountNumber: item.accountNumber,
+      accountNumber2: item.accountNumber2
     }))
   );
 
-  const handleReject = (id: number, item: WaitingListItem<BankTokenRequest>) => {
+  const handleReject = (id: number, item: WaitingListItem<BankAccountRegistration>) => {
     console.log(`거절 처리: ${id}`, item);
     // 여기에 API 호출 등 실제 거절 처리 로직 구현
   };
 
-  const handleApprove = (id: number, type: string, item: WaitingListItem<BankTokenRequest>) => {
-    // 요청 확인 버튼 클릭 시 바로 처리
-    console.log(`${item.bank}의 ${item.type} 요청 확인 처리`);
+  const handleApprove = (id: number, type: string, item: WaitingListItem<BankAccountRegistration>) => {
+    // 선택된 아이템 저장
+    setSelectedItem(item);
     
+    // 아이템의 approveButtonText에 따라 다른 처리
+    if (item.approveButtonText === "해제 완료") {
+      // 해제 완료의 경우 확인 모달 표시
+      setShowConfirmationModal(true);
+    } else if (item.approveButtonText === "변경 완료") {
+      // 변경 완료의 경우 가맹점 정보 모달 표시
+      setShowMerchantModal(true);
+    } else if (item.approveButtonText === "등록완료") {
+      // 등록 완료의 경우 가맹점 정보 모달 표시
+      setShowMerchantModal(true);
+    }
+  };
+
+  // 확인 모달에서 확인 버튼 클릭 처리
+  const handleConfirmAction = () => {
+    setShowConfirmationModal(false);
+    
+    if (!selectedItem) return;
+    
+    // 모달 확인 후 승인 처리
+    processApproval(selectedItem.id);
+  };
+
+  // 가맹점 정보 모달의 다음 버튼 클릭 처리
+  const handleMerchantNext = () => {
+    setShowMerchantModal(false);
+    
+    if (!selectedItem) return;
+    
+    if (selectedItem.approveButtonText === "변경 완료") {
+      // 변경 완료의 경우 확인 모달 표시
+      setShowConfirmationModal(true);
+    } else if (selectedItem.approveButtonText === "등록완료") {
+      // 등록 완료의 경우 업비트 로그인 모달 표시
+      setShowUpbitModal(true);
+    }
+  };
+
+  // 업비트 인증 처리
+  const handleUpbitAuth = (verificationCode: string) => {
+    // 로딩 상태 시작
+    setIsLoadingAuthentication(true);
+    
+    // 실제로는 여기서 API 호출 등으로 인증 프로세스 처리
+    setTimeout(() => {
+      setIsLoadingAuthentication(false);
+      setShowUpbitModal(false);
+      
+      // 업비트 인증 완료 후 확인 모달 표시
+      setShowConfirmationModal(true);
+    }, 2000); // 2초 후 완료 처리 (데모용)
+  };
+
+  // 실제 승인 처리 로직
+  const processApproval = (id: number) => {
     // 처리 후 목록에서 제거하는 예시 로직
     setWaitingListItems(prev => 
       prev.filter(listItem => listItem.id !== id)
     );
     
     // 실제 구현에서는 API 호출 등을 통해 요청 확인 처리
+    setSelectedItem(null);
   };
 
   const handleSearch = (searchText: string) => {
@@ -67,7 +122,7 @@ export default function BankTokenRequestPage() {
 
   const handleBulkRegistration = () => {
     setBulkModalOpen(true);
-    console.log('일괄 토큰 등록 모달 열기');
+    console.log('일괄 계좌 등록 모달 열기');
   };
 
   const handleBulkConfirm = (selectedIds: number[]) => {
@@ -81,15 +136,21 @@ export default function BankTokenRequestPage() {
     // 실제 구현에서는 API 호출 등 실제 일괄 승인 처리 로직 구현
   };
 
-  // 컬럼 정의
-  const columns = [
+  // 인터페이스 및 컬럼 정의
+  interface Column {
+    key: string;
+    header: string;
+    render?: (value: string, item?: WaitingListItem<BankAccountRegistration>) => React.ReactNode;
+  }
+
+  const columns: Column[] = [
     {
       key: 'requestDate',
-      header: '요청 날짜',
+      header: '요청 일자',
     },
     {
       key: 'name',
-      header: '은행',
+      header: '입금자 명',
       render: (value: string) => (
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center text-pink-600 font-medium">
@@ -100,12 +161,29 @@ export default function BankTokenRequestPage() {
       )
     },
     {
-      key: 'reason',
-      header: '사유',
+      key: 'type',
+      header: '타입',
+      render: (value: string) => (
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+          value === "가맹점" 
+            ? "bg-blue-100 text-blue-700" 
+            : "bg-purple-100 text-purple-700"
+        }`}>
+          {value}
+        </span>
+      )
     },
     {
-      key: 'type',
-      header: '요청 종류',
+      key: 'coin',
+      header: '코인',
+    },
+    {
+      key: 'accountNumber',
+      header: '계좌번호',
+    },
+    {
+      key: 'accountNumber2',
+      header: '계좌번호2',
     },
   ];
 
@@ -116,90 +194,141 @@ export default function BankTokenRequestPage() {
       className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all bg-white text-pink-500 border border-pink-500 hover:bg-pink-50"
     >
       <ClipboardCheck size={16} className="text-pink-500" />
-      한번에 여러 토큰 요청 승인하기
+      한번에 여러 계좌 등록하기 (최대 20명)
     </button>
   );
+
+  // 확인 모달 메시지 및 제목 설정
+  const getConfirmationModalProps = () => {
+    if (!selectedItem) return { title: "", actionText: "", targetName: "" };
+    
+    let title = "확인";
+    let actionText = "";
+    
+    switch (selectedItem.approveButtonText) {
+      case "해제 완료":
+        title = "계좌 해제 확인";
+        actionText = "해제";
+        break;
+      case "변경 완료":
+        title = "가맹점 정보 변경 확인";
+        actionText = "변경";
+        break;
+      case "등록완료":
+        title = "계좌 등록 확인";
+        actionText = "등록";
+        break;
+    }
+    
+    return { 
+      title, 
+      actionText, 
+      targetName: selectedItem.depositorName
+    };
+  };
+
+  const modalProps = getConfirmationModalProps();
 
   return (
     <>
       <WaitingListComponent
-        title="은행 토큰 요청 수락"
-        subtitle="토큰 요청"
+        title="은행 계좌 등록 대기 리스트"
+        subtitle="신규 정산 계좌 등록 대기"
         subtitleIcon={<Landmark size={18} className="text-pink-500" />}
         items={waitingListItems}
         columns={columns}
-        searchPlaceholder="은행명 검색"
+        searchPlaceholder="유저 또는 계좌 검색"
         onApprove={handleApprove}
         onReject={handleReject}
         onSearch={handleSearch}
         extraActionButton={extraActionButton}
-        rejectModalTitle="토큰 요청 반려 확인"
-        rejectModalTargetType="토큰 요청"
-        rejectModalActionText="반려"
+        rejectModalTitle="계좌 등록 거절 확인"
+        rejectModalTargetType="등록 요청"
+        rejectModalActionText="거절"
       />
       
-    
+      {/* 확인 모달 */}
+      {showConfirmationModal && (
+        <ConfirmationModal
+          isOpen={showConfirmationModal}
+          onClose={() => setShowConfirmationModal(false)}
+          onConfirm={handleConfirmAction}
+          title={modalProps.title}
+          targetName={modalProps.targetName}
+          targetType="정보"
+          actionText={modalProps.actionText}
+        />
+      )}
+      
+      {/* 가맹점 정보 모달 */}
+      {showMerchantModal && <MerchantInfoModal onNext={handleMerchantNext} />}
+      
+      {/* 업비트 로그인 모달 */}
+      {showUpbitModal && (
+        <UpbitLoginModal 
+          onComplete={handleUpbitAuth}
+          isLoading={isLoadingAuthentication}
+        />
+      )}
     </>
   )
 }
 
-// 데이터를 컴포넌트 외부로 이동
-const tokenRequests = [
+// 데이터를 컴포넌트 외부로 이동 - 올바른 계좌 등록 데이터 형식
+const bankAccountRequests = [
   {
     id: 1,
-    date: "2024/12/27",
-    bank: "우리은행",
-    reason: "가치 유지를 위한 긴급 변경 요청",
-    type: "변경 요청",
+    requestDate: "2025/01/07",
+    depositorName: "홍길동",
+    userType: "가맹점",
+    coin: "XRP",
+    accountNumber: "880912",
+    accountNumber2: "010-0000-0000",
+    approveType: "release",
+    approveButtonText: "해제 완료",
   },
   {
     id: 2,
-    date: "2024/12/26",
-    bank: "신한은행",
-    reason: "토큰 발행을 위한 변경 요청",
-    type: "신규 요청",
-  },
-];
-
-// 상세 보기용 샘플 데이터 (이제 직접 사용하지 않지만 나중에 필요할 수 있어 유지)
-const sampleTokenChanges = [
-  {
-    symbol: "BTC",
-    oldValue: "1.5%",
-    newValue: "1.8%",
-    status: "+0.3%",
-    statusType: "increase" as const
+    requestDate: "2025/01/07",
+    depositorName: "김영희",
+    userType: "유저",
+    coin: "USDT",
+    accountNumber: "880912",
+    accountNumber2: "010-0000-0000",
+    approveType: "change",
+    approveButtonText: "변경 완료",
   },
   {
-    symbol: "ETH",
-    oldValue: "2.1%",
-    newValue: "1.9%",
-    status: "-0.2%",
-    statusType: "decrease" as const
+    id: 3,
+    requestDate: "2025/01/07",
+    depositorName: "이철수",
+    userType: "유저",
+    coin: "아기호랑이",
+    accountNumber: "880912",
+    accountNumber2: "010-0000-0000",
+    approveType: "register",
+    approveButtonText: "등록완료",
   },
   {
-    symbol: "XRP",
-    oldValue: "-",
-    newValue: "0.8%",
-    status: "신규",
-    statusType: "new" as const
-  }
-];
-
-const sampleTokenValues = [
-  {
-    value: "1 BTC = ₩56,470,000",
-    change: "+1.2%",
-    changeType: "increase" as const
+    id: 4,
+    requestDate: "2025/01/07",
+    depositorName: "박민수",
+    userType: "가맹점",
+    coin: "아기호랑이",
+    accountNumber: "880912",
+    accountNumber2: "010-0000-0000",
+    approveType: "register",
+    approveButtonText: "등록완료",
   },
   {
-    value: "1 ETH = ₩3,120,000",
-    change: "-0.5%",
-    changeType: "decrease" as const
+    id: 5,
+    requestDate: "2025/01/07",
+    depositorName: "정지원",
+    userType: "유저",
+    coin: "아기호랑이",
+    accountNumber: "880912",
+    accountNumber2: "010-0000-0000",
+    approveType: "register",
+    approveButtonText: "등록완료",
   },
-  {
-    value: "1 XRP = ₩650",
-    change: "+0.8%",
-    changeType: "increase" as const
-  }
 ];
