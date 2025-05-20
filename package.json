@@ -9,16 +9,22 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@pdftron/pdfjs-express": "^8.7.5",
+    "@react-pdf-viewer/core": "^3.12.0",
+    "@react-pdf-viewer/default-layout": "^3.12.0",
     "lucide-react": "^0.508.0",
     "next": "15.3.2",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-pdf": "^9.2.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "file-loader": "^6.2.0",
+    "next-compose-plugins": "^2.2.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

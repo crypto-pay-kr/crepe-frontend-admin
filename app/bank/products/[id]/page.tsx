@@ -2,8 +2,12 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter, useParams, useSearchParams } from "next/navigation"
-import { Search, ChevronLeft, ChevronRight, Filter, Ban, FileText, Eye, PlusCircle, ArrowLeft } from "lucide-react"
-import { ConfirmationModal } from "@/components/common/confirm-modal"
+import { Search, ChevronLeft, ChevronRight, Filter, Ban, FileText, Eye, ArrowLeft,Check,X } from "lucide-react"
+import ProductActionModal from "@/components/common/product-modal"
+import ProductDetailModal from "@/components/common/product-detail-modal"
+import PDFViewer  from "@/components/common/pdf-viewer-modal"
+
+
 
 export default function BankProductManagement() {
   const router = useRouter();
@@ -15,36 +19,102 @@ export default function BankProductManagement() {
   
   const [currentPage, setCurrentPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState("")
-  const [confirmModalOpen, setConfirmModalOpen] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<{id: number, productName: string} | null>(null)
+  const [actionModalOpen, setActionModalOpen] = useState(false)
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<{id: number, productName: string, actionType: 'approve' | 'reject' | 'suspend'} | null>(null)
+  const [selectedDetailProduct, setSelectedDetailProduct] = useState<any>(null)
+  const [selectedPdfProduct, setSelectedPdfProduct] = useState<string>("")
 
-  const handleSuspendProduct = (productId: number, productName: string) => {
-    setSelectedProduct({ id: productId, productName });
-    setConfirmModalOpen(true);
-  }
-
-  const handleConfirmSuspend = () => {
-    if (selectedProduct) {
-      console.log(`상품 판매 정지 처리: ${selectedProduct.id}, ${selectedProduct.productName}`);
-      // 실제 구현에서는 API 호출 등을 통해 상품 판매 정지 처리
-    }
-    setConfirmModalOpen(false);
-    setSelectedProduct(null);
-  }
-
-  const handleCloseConfirmModal = () => {
-    setConfirmModalOpen(false);
-    setSelectedProduct(null);
-  }
-
-  const handleViewProductDetails = (productId: number) => {
-    console.log(`상품 상세 조회: ${productId}`)
-    // 실제 구현에서는 상품 상세 페이지로 이동
-  }
-
+  // 상품 안내서 조회
   const handleViewProductGuide = (productId: number) => {
-    console.log(`상품 안내서: ${productId}`)
-    // 실제 구현에서는 상품 안내서 다운로드 또는 조회
+    const product = bankProducts.find(p => p.id === productId)
+    if (product) {
+      setSelectedPdfProduct(product.productName)
+      setPdfViewerOpen(true)
+    }
+  }
+
+  // 상품 상세 조회
+  const handleViewProductDetails = (productId: number) => {
+    const product = bankProducts.find(p => p.id === productId)
+    if (product) {
+      setSelectedDetailProduct(product)
+      setDetailModalOpen(true)
+    }
+  }
+
+  // 상품 액션 처리 (승인/거절/판매정지)
+  const handleProductAction = (productId: number, productName: string, actionType: 'approve' | 'reject' | 'suspend') => {
+    setSelectedProduct({ id: productId, productName, actionType });
+    setActionModalOpen(true);
+  }
+
+  const handleConfirmAction = (reason?: string, action?: 'approve' | 'reject' | 'suspend') => {
+    if (selectedProduct) {
+      console.log(`상품 ${action} 처리: ${selectedProduct.id}, ${selectedProduct.productName}, 사유: ${reason || '없음'}`);
+      // 실제 구현에서는 API 호출 등을 통해 상품 처리
+    }
+    setActionModalOpen(false);
+    setSelectedProduct(null);
+  }
+
+  const handleCloseActionModal = () => {
+    setActionModalOpen(false);
+    setSelectedProduct(null);
+  }
+
+  const handleCloseDetailModal = () => {
+    setDetailModalOpen(false);
+    setSelectedDetailProduct(null);
+  }
+
+  const handleClosePdfViewer = () => {
+    setPdfViewerOpen(false);
+    setSelectedPdfProduct("");
+  }
+
+  // 상품 상태에 따른 버튼 렌더링
+  const renderActionButton = (product: any) => {
+    switch (product.status) {
+      case "승인 중":
+      case "심사 중":
+        return (
+          <div className="flex gap-1">
+            <button
+              onClick={() => handleProductAction(product.id, product.productName, 'approve')}
+              className="flex-1 px-2 py-1 rounded-md text-xs font-medium border border-green-500 text-green-600 hover:bg-green-50 transition-all flex items-center justify-center"
+            >
+              <Check className="w-3 h-3 mr-1" />
+              승인
+            </button>
+            <button
+              onClick={() => handleProductAction(product.id, product.productName, 'reject')}
+              className="flex-1 px-2 py-1 rounded-md text-xs font-medium border border-red-500 text-red-600 hover:bg-red-50 transition-all flex items-center justify-center"
+            >
+              <X className="w-3 h-3 mr-1" />
+              거절
+            </button>
+          </div>
+        )
+      case "승인":
+        return (
+          <button
+            onClick={() => handleProductAction(product.id, product.productName, 'suspend')}
+            className="w-full px-2 py-1 rounded-md text-xs font-medium border border-pink-500 text-pink-500 hover:bg-pink-50 transition-all flex items-center justify-center"
+          >
+            <Ban className="w-3 h-3 mr-1" />
+            판매 정지
+          </button>
+        )
+      case "거절":
+      default:
+        return (
+          <button className="w-full px-2 py-1 rounded-md text-xs font-medium text-gray-400 border border-gray-200 cursor-not-allowed">
+            -
+          </button>
+        )
+    }
   }
   
   const handleGoBack = () => {
@@ -67,12 +137,6 @@ export default function BankProductManagement() {
             </div>
             <div className="flex items-center justify-between mb-2">
               <h1 className="text-2xl font-bold text-gray-800">{bankName}</h1>
-              <button 
-                className="flex items-center gap-2 bg-white rounded-full px-4 py-2 shadow-sm border border-gray-100 hover:shadow-md transition-all"
-              >
-                <PlusCircle size={18} className="text-pink-500" />
-                <span className="text-sm font-medium">상품 추가</span>
-              </button>
             </div>
             <div className="text-sm text-gray-500">
               <span className="hover:text-pink-500">은행</span> / <span className="hover:text-pink-500">은행 상세 관리</span> / <span className="text-gray-700 font-medium ml-1">은행 상품 관리</span>
@@ -94,10 +158,10 @@ export default function BankProductManagement() {
             </div>
             
             <div className="flex items-center gap-3">
-              <Link href="/bank/products/suspended">
+              <Link href={`/bank/products/${bankId}/suspended?name=${encodeURIComponent(bankName)}`}>
                 <button className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all bg-white text-pink-500 border border-pink-500 hover:bg-pink-50">
                   <Filter size={16} />
-                  이용정지 상품 리스트
+                  판매정지 상품 리스트
                 </button>
               </Link>
             </div>
@@ -144,19 +208,7 @@ export default function BankProductManagement() {
                       </span>
                     </td>
                     <td className="py-3 px-1">
-                      {product.status === "승인 중" || product.status === "심사 중" || product.status === "거절" ? (
-                        <button className="w-full px-2 py-1 rounded-md text-xs font-medium text-gray-400 border border-gray-200 cursor-not-allowed">
-                          -
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleSuspendProduct(product.id, product.productName)}
-                          className="w-full px-2 py-1 rounded-md text-xs font-medium border border-pink-500 text-pink-500 hover:bg-pink-50 transition-all flex items-center justify-center"
-                        >
-                          <Ban className="w-3 h-3 mr-1" />
-                          판매 정지
-                        </button>
-                      )}
+                      {renderActionButton(product)}
                     </td>
                     <td className="py-3 px-1">
                       <button
@@ -223,15 +275,27 @@ export default function BankProductManagement() {
         </div>
       </div>
       
-      {/* 판매 정지 확인 모달 */}
-      <ConfirmationModal
-        isOpen={confirmModalOpen}
-        onClose={handleCloseConfirmModal}
-        onConfirm={handleConfirmSuspend}
-        title="판매정지 확인"
-        targetName={selectedProduct?.productName || ""}
-        targetType="상품"
-        actionText="판매정지"
+      {/* 상품 액션 모달 */}
+      <ProductActionModal
+        isOpen={actionModalOpen}
+        onClose={handleCloseActionModal}
+        onConfirm={handleConfirmAction}
+        productName={selectedProduct?.productName || ""}
+        actionType={selectedProduct?.actionType || 'suspend'}
+      />
+
+      {/* 상품 상세 조회 모달 */}
+      <ProductDetailModal
+        isOpen={detailModalOpen}
+        onClose={handleCloseDetailModal}
+        product={selectedDetailProduct}
+      />
+
+      {/* PDF 뷰어 */}
+      <PDFViewer 
+        isOpen={pdfViewerOpen} 
+        onClose={handleClosePdfViewer} 
+        productName={selectedPdfProduct}
       />
     </div>
   )
