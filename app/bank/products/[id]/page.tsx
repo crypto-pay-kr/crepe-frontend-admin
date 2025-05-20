@@ -178,8 +178,8 @@ export default function BankProductManagement() {
                   <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">상품명</th>
                   <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">종류</th>
                   <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">주관은행</th>
-                  <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">총 예치금</th>
-                  <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">총 예치 인원</th>
+                  <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">총 혜택 자본금</th>
+                  <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">최대 인원</th>
                   <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">혜택</th>
                   <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">상태</th>
                   <th className="py-3 px-2 text-center font-bold text-gray-500 text-xs" colSpan={3}>

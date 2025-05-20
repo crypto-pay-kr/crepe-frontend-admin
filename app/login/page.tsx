@@ -2,13 +2,13 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from "../../context/AuthContext";
-import Image from 'next/image';
 import Link from 'next/link';
+import { ArrowLeft, Eye, EyeOff, Lock } from 'lucide-react';
 
-// 스타일 모듈 import 대신 인라인 스타일 및 Tailwind 사용
 function LoginPage() {
     const [loginId, setLoginId] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const { login } = useAuthContext();
     const router = useRouter();
@@ -24,77 +24,122 @@ function LoginPage() {
         }
     };
 
+    const togglePasswordVisibility = () => {
+        setShowPassword(!showPassword);
+    };
+
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-lg">
-                <div className="text-center">
-                    <div className="flex justify-center">
-                        <div className="bg-gradient-to-br from-pink-50 to-white p-4 rounded-xl w-24 h-24 flex items-center justify-center shadow-md mb-4">
-                            <div className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-rose-500 font-bold text-3xl">CREPE</div>
-                        </div>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-pink-50 via-white to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+            <div className="w-full max-w-md relative">
+                {/* 카드 */}
+                <div className="relative bg-white p-10 rounded-2xl border border-pink-100">
+                    {/* 헤더 */}
+                    <div className="absolute top-5 left-5">
+                        <Link href="/" className="text-gray-500 hover:text-[#F47C98] transition-colors flex items-center gap-1 text-sm">
+                            <ArrowLeft size={16} />
+                            홈으로
+                        </Link>
                     </div>
-                    <h2 className="mt-4 text-3xl font-extrabold text-gray-900">CREPE 관리자 시스템</h2>
-                    <p className="mt-2 text-sm text-gray-600">안전한 관리자 접속을 위해 로그인해 주세요</p>
-                </div>
-                
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                    
+                    <div className="mt-8 text-center">
+                        {/* 로고 */}
+                        <div className="flex justify-center">
+                            <div className="bg-gradient-to-br from-pink-50 to-white p-5 rounded-full w-28 h-28 flex items-center justify-center mb-4">
+                                <div className="text-transparent bg-clip-text bg-gradient-to-r from-[#F47C98] to-rose-500 font-bold text-3xl">CREPE</div>
+                            </div>
+                        </div>
+                        <h2 className="mt-6 text-3xl font-extrabold text-gray-900">관리자 로그인</h2>
+                        <p className="mt-2 text-sm text-gray-600">
+                            <span className="inline-flex items-center text-gray-500">
+                                <Lock size={14} className="mr-1"/> 
+                                관리자 전용 페이지입니다
+                            </span>
+                        </p>
+                    </div>
+                    
+                    {/* 에러 메시지 */}
                     {errorMessage && (
-                        <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 rounded">
+                        <div className="mt-6 bg-red-50 border-l-4 border-red-400 p-4 rounded">
                             <div className="flex">
-                                <div className="flex-shrink-0">
-                                    <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                    </svg>
-                                </div>
                                 <div className="ml-3">
-                                    <p className="text-sm text-red-700">{errorMessage}</p>
+                                    <p className="text-sm text-red-600">{errorMessage}</p>
                                 </div>
                             </div>
                         </div>
                     )}
                     
-                    <div className="rounded-md -space-y-px">
-                        <div className="mb-5">
-                            <label htmlFor="loginId" className="block text-sm font-medium text-gray-700 mb-1">
-                                아이디
-                            </label>
-                            <input
-                                id="loginId"
-                                name="loginId"
-                                type="text"
-                                required
-                                className="appearance-none rounded-md relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-pink-500 focus:border-pink-500 focus:z-10 sm:text-sm"
-                                placeholder="아이디를 입력하세요"
-                                value={loginId}
-                                onChange={(e) => setLoginId(e.target.value)}
-                            />
+                    {/* 로그인 폼 */}
+                    <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                        <div className="space-y-5">
+                            <div>
+                                <label htmlFor="loginId" className="block text-sm font-medium text-gray-700 mb-1">
+                                    관리자 아이디
+                                </label>
+                                <input
+                                    id="loginId"
+                                    name="loginId"
+                                    type="text"
+                                    required
+                                    className="appearance-none rounded-lg relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-[#F47C98] focus:border-[#F47C98] sm:text-sm transition-colors"
+                                    placeholder="관리자 아이디를 입력하세요"
+                                    value={loginId}
+                                    onChange={(e) => setLoginId(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                                    비밀번호
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        id="password"
+                                        name="password"
+                                        type={showPassword ? "text" : "password"}
+                                        required
+                                        className="appearance-none rounded-lg relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-[#F47C98] focus:border-[#F47C98] sm:text-sm transition-colors"
+                                        placeholder="비밀번호를 입력하세요"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                        onClick={togglePasswordVisibility}
+                                    >
+                                        {showPassword ? (
+                                            <EyeOff className="h-5 w-5" />
+                                        ) : (
+                                            <Eye className="h-5 w-5" />
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                                비밀번호
-                            </label>
-                            <input
-                                id="password"
-                                name="password"
-                                type="password"
-                                required
-                                className="appearance-none rounded-md relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-pink-500 focus:border-pink-500 focus:z-10 sm:text-sm"
-                                placeholder="비밀번호를 입력하세요"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                            />
-                        </div>
-                    </div>
 
-                    <div>
-                        <button
-                            type="submit"
-                            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 transition-all duration-200 shadow-md"
-                        >
-                            로그인
-                        </button>
-                    </div>
-                </form>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                                <input
+                                    id="remember-me"
+                                    name="remember-me"
+                                    type="checkbox"
+                                    className="h-4 w-4 text-[#F47C98] focus:ring-[#F47C98] border-gray-300 rounded"
+                                />
+                                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+                                    로그인 상태 유지
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="pt-2">
+                            <button
+                                type="submit"
+                                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-[#F47C98] to-[#E06A88] hover:from-[#E06A88] hover:to-[#D15A78] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F47C98] transition-all duration-200 transform hover:translate-y-px"
+                            >
+                                관리자 로그인
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     );

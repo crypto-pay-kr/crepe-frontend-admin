@@ -9,6 +9,14 @@ export default function WelcomePage() {
         <div className="flex items-center gap-3">
           <span className="text-xl font-bold text-gray-800">Crepe</span>
         </div>
+        <div>
+          <Link
+            href="/login"
+            className="px-6 py-2 text-[#F47C98] border border-[#F47C98] rounded-full font-medium hover:bg-[#FFF8E1] transition-colors"
+          >
+            로그인
+          </Link>
+        </div>
       </header>
 
       {/* 히어로 섹션 */}
@@ -24,7 +32,7 @@ export default function WelcomePage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/register"
+              href="/login"
               className="px-8 py-3 bg-[#F47C98] text-white rounded-full font-medium hover:bg-[#E06A88] transition-colors flex items-center justify-center gap-2"
             >
               시작하기
@@ -77,7 +85,7 @@ export default function WelcomePage() {
             Crepe와 함께 암호화폐 결제의 새로운 경험을 시작하세요. 간단한 가입 절차로 빠르게 시작할 수 있습니다.
           </p>
           <Link
-            href="/register"
+            href="/login"
             className="px-8 py-3 bg-[#F47C98] text-white rounded-full font-medium hover:bg-[#E06A88] transition-colors inline-flex items-center gap-2"
           >
             무료로 시작하기

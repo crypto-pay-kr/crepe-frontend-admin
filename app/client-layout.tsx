@@ -8,7 +8,7 @@ export default function ClientLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
-  const isLoginPage = pathname === '/login';
+  const isLoginPage = pathname === '/login' || pathname === '/';
 
   // 로그인 페이지에는 사이드바를 표시하지 않음
   if (isLoginPage) {
