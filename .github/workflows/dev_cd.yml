@@ -60,4 +60,4 @@ jobs:
         proxy_key: ${{ secrets.BASTION_PEM_KEY }}
         envs: GITHUB_SHA,REPO
         script: |
-          ./deploy_front_bank_dev.sh ${{ secrets.DOCKER_USERNAME }} $REPO ${GITHUB_SHA::7}
+          ./deploy_front_admin_dev.sh ${{ secrets.DOCKER_USERNAME }} $REPO ${GITHUB_SHA::7}
