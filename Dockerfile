@@ -24,8 +24,10 @@ RUN npm install --global pm2
 
 # 필요한 파일과 빌드 결과물 복사
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/tsconfig.json ./
+COPY --from=builder /app/custom.d.ts ./
 COPY --from=builder /app/package-lock.json ./
-COPY --from=builder /app/next.config.js ./
+COPY --from=builder /app/next.config.ts ./
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
