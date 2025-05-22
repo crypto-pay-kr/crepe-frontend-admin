@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, useParams, useSearchParams } from "next/navigation"
 import { Search, ChevronLeft, ChevronRight, ArrowLeft, Eye, FileText, RotateCcw, AlertTriangle } from "lucide-react"
@@ -7,6 +7,40 @@ import ProductDetailModal from "@/components/common/product-detail-modal"
 import PDFViewer from "@/components/common/pdf-viewer-modal"
 import { ConfirmationModal } from "@/components/common/confirm-modal"
 
+// API 응답 타입 정의
+interface BankProduct {
+  id: number;
+  type: string;
+  productName: string;
+  bankName: string;
+  totalBudget: number;
+  totalParticipants: number;
+  status: string;
+  minInterestRate: number;
+  maxInterestRate: number;
+}
+
+// 상품 타입 매핑 함수
+const getTypeDisplay = (type: string) => {
+  switch (type) {
+    case 'INSTALLMENT':
+      return '적금';
+    case 'SAVING':
+      return '예금';
+    case 'VOUCHER':
+      return '상품권';
+    default:
+      return type;
+  }
+};
+
+// 혜택 표시 함수
+const getBenefitDisplay = (minRate: number, maxRate: number) => {
+  if (minRate === maxRate) {
+    return `연 ${minRate}%`;
+  }
+  return `연 ${minRate}% ~ ${maxRate}%`;
+};
 
 export default function SuspendedProductsList() {
   const router = useRouter();
@@ -19,13 +53,58 @@ export default function SuspendedProductsList() {
   const [currentPage, setCurrentPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState("")
   
-  // 모달 상태 추가
+  // 모달 상태
   const [restoreModalOpen, setRestoreModalOpen] = useState(false)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<{id: number, productName: string} | null>(null)
   const [selectedDetailProduct, setSelectedDetailProduct] = useState<any>(null)
   const [selectedPdfProduct, setSelectedPdfProduct] = useState<string>("")
+
+  // API 관련 상태
+  const [suspendedProducts, setSuspendedProducts] = useState<BankProduct[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // API 호출 함수 - 판매정지 상품 목록 조회
+  const fetchSuspendedProducts = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      
+      if (!token) {
+        throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
+      }
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch(`http://localhost:8080/api/admin/bank/product/${bankId}/suspend`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data: BankProduct[] = await response.json();
+      setSuspendedProducts(data);
+    } catch (err) {
+      console.error('판매정지 상품 목록 조회 실패:', err);
+      setError(err instanceof Error ? err.message : '판매정지 상품 목록을 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 컴포넌트 마운트 시 데이터 가져오기
+  useEffect(() => {
+    if (bankId) {
+      fetchSuspendedProducts();
+    }
+  }, [bankId]);
 
   const handleGoBack = () => {
     router.push(`/bank/products/${bankId}?name=${encodeURIComponent(bankName)}`);
@@ -56,10 +135,44 @@ export default function SuspendedProductsList() {
   }
 
   // 판매 재개 확인
-  const handleConfirmRestore = () => {
+  const handleConfirmRestore = async () => {
     if (selectedProduct) {
-      console.log(`상품 판매 재개: ${selectedProduct.id}, ${selectedProduct.productName}`);
-      // 실제 구현에서는 API 호출을 통해 상품 상태 변경
+      try {
+        const requestBody = {
+          productId: selectedProduct.id,
+          status: 'APPROVED', // 판매정지 해제는 다시 승인 상태로
+          description: '판매정지 해제'
+        };
+
+        const token = localStorage.getItem('accessToken');
+      
+        if (!token) {
+          throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
+        }
+
+        const response = await fetch('http://localhost:8080/api/admin/bank/product/suspend', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log(`상품 재활성화 처리 완료:`, result);
+        
+        // 판매정지 상품 목록 새로고침
+        await fetchSuspendedProducts();
+        
+      } catch (err) {
+        console.error('상품 재활성화 처리 실패:', err);
+        alert(`상품 재활성화 처리에 실패했습니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
+      }
     }
     setRestoreModalOpen(false);
     setSelectedProduct(null);
@@ -85,6 +198,39 @@ export default function SuspendedProductsList() {
   const filteredProducts = suspendedProducts.filter(product =>
     product.productName.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // 로딩 상태 렌더링
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="p-6 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto"></div>
+            <p className="mt-4 text-gray-500">판매정지 상품 목록을 불러오는 중...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 에러 상태 렌더링
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="p-6 text-center">
+            <p className="text-red-500 mb-4">오류가 발생했습니다: {error}</p>
+            <button
+              onClick={fetchSuspendedProducts}
+              className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors"
+            >
+              다시 시도
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -126,13 +272,13 @@ export default function SuspendedProductsList() {
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-700">
-                ₩{filteredProducts.reduce((sum, product) => sum + parseInt(product.deposit.replace(/[₩,]/g, '')), 0).toLocaleString()}
+                ₩{filteredProducts.reduce((sum, product) => sum + product.totalBudget, 0).toLocaleString()}
               </div>
               <div className="text-sm text-gray-600">총 예치금</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-700">
-                {filteredProducts.reduce((sum, product) => sum + parseInt(product.members.replace('명', '')), 0)}명
+                {filteredProducts.reduce((sum, product) => sum + product.totalParticipants, 0)}명
               </div>
               <div className="text-sm text-gray-600">총 예치 인원</div>
             </div>
@@ -174,10 +320,10 @@ export default function SuspendedProductsList() {
                     <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">상품명</th>
                     <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">종류</th>
                     <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">주관은행</th>
-                    <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">총 예치 인원</th>
+                    <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">총 혜택 자본금</th>
+                    <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">최대 인원</th>
                     <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">혜택</th>
-                    <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">정지일</th>
-                    <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">정지사유</th>
+                    <th className="py-3 px-2 text-left font-bold text-gray-500 text-xs">상태</th>
                     <th className="py-3 px-2 text-center font-bold text-gray-500 text-xs" colSpan={3}>
                       관리
                     </th>
@@ -188,14 +334,15 @@ export default function SuspendedProductsList() {
                     <tr key={product.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
                       <td className="py-3 px-2 text-xs font-medium text-gray-800">{product.id}</td>
                       <td className="py-3 px-2 text-xs font-medium text-gray-800">{product.productName}</td>
-                      <td className="py-3 px-2 text-xs text-gray-600">{product.type}</td>
-                  
-                      <td className="py-3 px-2 text-xs text-gray-600">{product.deposit}</td>
-                      <td className="py-3 px-2 text-xs text-gray-600">{product.members}</td>
-                      <td className="py-3 px-2 text-xs text-gray-600">{product.benefit}</td>
-                      <td className="py-3 px-2 text-xs text-gray-600">{product.suspendedDate}</td>
-                      <td className="py-3 px-2 text-xs text-gray-600 max-w-[150px] truncate" title={product.suspendedReason}>
-                        {product.suspendedReason}
+                      <td className="py-3 px-2 text-xs text-gray-600">{getTypeDisplay(product.type)}</td>
+                      <td className="py-3 px-2 text-xs text-gray-600">{product.bankName}</td>
+                      <td className="py-3 px-2 text-xs text-gray-600">₩{product.totalBudget.toLocaleString()}</td>
+                      <td className="py-3 px-2 text-xs text-gray-600">{product.totalParticipants}명</td>
+                      <td className="py-3 px-2 text-xs text-gray-600">{getBenefitDisplay(product.minInterestRate, product.maxInterestRate)}</td>
+                      <td className="py-3 px-2">
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-700">
+                          판매정지
+                        </span>
                       </td>
                       <td className="py-3 px-1">
                         <button
@@ -301,51 +448,3 @@ export default function SuspendedProductsList() {
     </div>
   )
 }
-
-// 판매정지된 상품 더미 데이터
-const suspendedProducts = [
-  {
-    id: 11,
-    productName: "고위험 투자상품",
-    type: "투자",
-    bank: "투자증권",
-    deposit: "₩200,000,000",
-    members: "150명",
-    benefit: "연 5.5% + 2.0%",
-    suspendedDate: "2024-03-15",
-    suspendedReason: "고위험 상품으로 인한 고객 보호 차원의 판매 정지"
-  },
-  {
-    id: 12,
-    productName: "해외펀드 연계예금",
-    type: "예금",
-    bank: "글로벌은행",
-    deposit: "₩150,000,000",
-    members: "89명",
-    benefit: "환율 연동",
-    suspendedDate: "2024-03-10",
-    suspendedReason: "환율 변동성으로 인한 위험도 증가"
-  },
-  {
-    id: 13,
-    productName: "단기 고수익 적금",
-    type: "적금",
-    bank: "신속은행",
-    deposit: "₩75,000,000",
-    members: "65명",
-    benefit: "연 6.0%",
-    suspendedDate: "2024-03-08",
-    suspendedReason: "약관 변경으로 인한 임시 판매 중단"
-  },
-  {
-    id: 14,
-    productName: "암호화폐 연계상품",
-    type: "투자",
-    bank: "디지털뱅크",
-    deposit: "₩300,000,000",
-    members: "200명",
-    benefit: "비트코인 연동",
-    suspendedDate: "2024-03-05",
-    suspendedReason: "규제 기관 권고에 따른 판매 정지"
-  }
-]

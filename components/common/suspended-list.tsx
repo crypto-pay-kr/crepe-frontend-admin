@@ -4,20 +4,33 @@ import { useState } from "react"
 import { Search, ArrowLeft, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react"
 import { ConfirmationModal } from "./confirm-modal";
 
-// 정지된 은행 타입 수정
-interface SuspendedBank {
+// 기본 정지 아이템 인터페이스
+interface BaseSuspendedItem {
   id: number;
   name: string;
   suspendedDate: string;
-  bankPhoneNum: string; // 은행 번호
-  totalSupply: number; // 발행량
 }
+
+// 은행 정지 아이템
+interface SuspendedBank extends BaseSuspendedItem {
+  bankPhoneNum: string;
+  totalSupply: number;
+}
+
+// 사용자 정지 아이템
+interface SuspendedUser extends BaseSuspendedItem {
+  suspensionPeriod: string;
+  reason: string;
+}
+
+// 유니온 타입으로 두 타입을 모두 허용
+type SuspendedItem = SuspendedBank | SuspendedUser;
 
 interface SuspendedListProps {
   onBack: () => void;
   type: 'user' | 'bank';
-  items: SuspendedBank[]; // 타입 변경
-  onRemoveSuspension?: (id: number) => void; // 단일 ID만 받도록 변경
+  items: SuspendedItem[];
+  onRemoveSuspension?: (id: number) => void;
 }
 
 export default function SuspendedList({ 
@@ -56,7 +69,7 @@ export default function SuspendedList({
     setSearchTerm(e.target.value);
   };
 
-  // 검색어로 은행 필터링
+  // 검색어로 아이템 필터링
   const filteredItems = items.filter(item => 
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -68,6 +81,15 @@ export default function SuspendedList({
       currency: 'KRW',
       maximumFractionDigits: 0 
     }).format(amount);
+  };
+
+  // 타입 가드 함수들
+  const isSuspendedBank = (item: SuspendedItem): item is SuspendedBank => {
+    return 'bankPhoneNum' in item && 'totalSupply' in item;
+  };
+
+  const isSuspendedUser = (item: SuspendedItem): item is SuspendedUser => {
+    return 'suspensionPeriod' in item && 'reason' in item;
   };
 
   return (
@@ -108,11 +130,11 @@ export default function SuspendedList({
             </div>
           </div>
 
-          {/* 항목 테이블 - 컬럼 및 데이터 구조 변경 */}
+          {/* 항목 테이블 */}
           <div className="px-6 pb-6">
             {filteredItems.length === 0 ? (
               <div className="p-6 text-center text-gray-500 border border-gray-100 rounded-lg">
-                {searchTerm ? '검색 결과가 없습니다.' : '이용정지된 은행이 없습니다.'}
+                {searchTerm ? '검색 결과가 없습니다.' : `이용정지된 ${getTypeText()}이 없습니다.`}
               </div>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-gray-100">
@@ -120,10 +142,21 @@ export default function SuspendedList({
                   <thead>
                     <tr className="bg-gray-50">
                       <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">#</th>
-                      <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">은행명</th>
+                      <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">
+                        {type === 'bank' ? '은행명' : '유저명'}
+                      </th>
                       <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">이용정지 일자</th>
-                      <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">담당 부서 번호</th>
-                      <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">예치 자본금</th>
+                      {type === 'bank' ? (
+                        <>
+                          <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">담당 부서 번호</th>
+                          <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">예치 자본금</th>
+                        </>
+                      ) : (
+                        <>
+                          <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">정지 기간</th>
+                          <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">정지 사유</th>
+                        </>
+                      )}
                       <th className="py-3 px-4 text-center font-medium text-gray-500 text-sm">관리</th>
                     </tr>
                   </thead>
@@ -133,8 +166,19 @@ export default function SuspendedList({
                         <td className="py-4 px-4 text-gray-800">{item.id}</td>
                         <td className="py-4 px-4 text-gray-800 font-medium">{item.name}</td>
                         <td className="py-4 px-4 text-gray-600">{item.suspendedDate}</td>
-                        <td className="py-4 px-4 text-gray-600">{item.bankPhoneNum}</td>
-                        <td className="py-4 px-4 text-gray-600">{formatCurrency(item.totalSupply)}</td>
+                        {type === 'bank' && isSuspendedBank(item) ? (
+                          <>
+                            <td className="py-4 px-4 text-gray-600">{item.bankPhoneNum}</td>
+                            <td className="py-4 px-4 text-gray-600">{formatCurrency(item.totalSupply)}</td>
+                          </>
+                        ) : type === 'user' && isSuspendedUser(item) ? (
+                          <>
+                            <td className="py-4 px-4 text-gray-600">{item.suspensionPeriod}</td>
+                            <td className="py-4 px-4 text-gray-600 max-w-xs truncate" title={item.reason}>
+                              {item.reason}
+                            </td>
+                          </>
+                        ) : null}
                         <td className="py-4 px-4">
                           <div className="flex justify-center">
                             <button
@@ -177,14 +221,14 @@ export default function SuspendedList({
         </div>
       </div>
 
-      {/* 확인 모달 - 단일 항목에 대한 정지 해제 확인용 */}
+      {/* 확인 모달 */}
       <ConfirmationModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onConfirm={confirmRemoveSuspension}
         title="이용정지 해제 확인"
         targetName={selectedItemName}
-        targetType="은행"
+        targetType={getTypeText()}
         actionText="이용정지 해제"
       />
     </div>

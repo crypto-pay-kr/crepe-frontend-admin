@@ -7,7 +7,7 @@ interface SuspendedUsersListProps {
 }
 
 export default function SuspendedUsersList({ onBack }: SuspendedUsersListProps) {
-  // 실제 구현에서는 API를 통해 데이터를 가져올 수 있습니다
+  // 사용자 정지 데이터 (타입 수정)
   const suspendedUsers = [
     {
       id: 1,
@@ -81,9 +81,9 @@ export default function SuspendedUsersList({ onBack }: SuspendedUsersListProps) 
     },
   ];
 
-  // 정지 해제 처리
-  const handleRemoveSuspension = (ids: number[]) => {
-    console.log("유저 이용정지 해제:", ids);
+  // 정지 해제 처리 (단일 ID로 수정)
+  const handleRemoveSuspension = (id: number) => {
+    console.log("유저 이용정지 해제:", id);
     // 실제 구현에서는 API 호출 등을 통해 이용정지 해제 처리
   };
 

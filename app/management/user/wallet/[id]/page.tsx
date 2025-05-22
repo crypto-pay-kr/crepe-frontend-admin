@@ -22,23 +22,51 @@ export default function UserAccountInfo() {
 // 유저 계좌 데이터 예시
 const userAccounts = [
   {
-    coinName: "리플",
-    depositorName: "박한진",
-    coinAccount: "olkdjfierjqnkjkdjf3249udnf982k2nelkn",
+    coinName: "비트코인",
+    currency: "BTC", // 추가된 필드
+    depositorName: "홍길동",
+    coinAccount: "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
     tagAccount: "",
     balance: {
-      fiat: "34,543 KRW",
-      crypto: "10 XRP",
+      fiat: "5,432,100 KRW",
+      crypto: "0.15 BTC",
     },
+    status: "APPROVED" // 추가된 필드
   },
   {
-    coinName: "테더",
-    depositorName: "박한진",
-    coinAccount: "olkdjfierjqnkjkdjf3249udnf982k2nelkn",
-    tagAccount: "32324124523-2343423953",
+    coinName: "이더리움",
+    currency: "ETH", // 추가된 필드
+    depositorName: "홍길동",
+    coinAccount: "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+    tagAccount: "",
     balance: {
-      fiat: "34,543 KRW",
-      crypto: "10 XRP",
+      fiat: "2,156,800 KRW",
+      crypto: "0.8 ETH",
     },
+    status: "APPROVED" // 추가된 필드
+  },
+  {
+    coinName: "리플",
+    currency: "XRP", // 추가된 필드
+    depositorName: "홍길동",
+    coinAccount: "rN7n7otQDd6FczFgLdSqtcsAUxDkw6fzRH",
+    tagAccount: "12345678",
+    balance: {
+      fiat: "987,200 KRW",
+      crypto: "2,500 XRP",
+    },
+    status: "REGISTERING" // 등록 대기 중 상태
+  },
+  {
+    coinName: "도지코인",
+    currency: "DOGE", // 추가된 필드
+    depositorName: "홍길동",
+    coinAccount: "-", // 미등록 상태
+    tagAccount: "",
+    balance: {
+      fiat: "0 KRW",
+      crypto: "0 DOGE",
+    },
+    status: "NOT_REGISTERED" // 미등록 상태
   },
 ]
