@@ -70,23 +70,6 @@ export default function BankDetails() {
           <div className="bg-white p-4 rounded-lg shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-md font-medium">은행 CI 이미지 정보</h2>
-              <button className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md flex items-center transition-colors">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="mr-1"
-                >
-                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                </svg>
-                수정하기
-              </button>
             </div>
             <div className="w-full h-40 bg-gray-100 border border-gray-200 rounded-lg flex items-center justify-center">
               <div className="relative w-32 h-32">

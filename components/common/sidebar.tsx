@@ -1,10 +1,29 @@
 'use client'
-import { BarChart3, Users, Store, User, ArrowRight, Building2, FileCheck, Wallet } from "lucide-react"
+import { BarChart3, Users, Store, User, ArrowRight, Building2, FileCheck, Wallet, LogOut } from "lucide-react"
 import { NavItem } from "./nav-item"
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useAuthContext } from "../../context/AuthContext"
+import { useState } from "react"
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  
+  // AuthContext 사용
+  let auth;
+  try {
+    auth = useAuthContext();
+  } catch (e) {
+    console.error("AuthContext 오류:", e);
+    auth = {
+      isAuthenticated: false,
+      login: async () => {},
+      logout: () => {},
+      checkAuth: async () => false
+    };
+  }
+  const { logout } = auth;
   
   // 경로에 따라 탭 상태 설정
   const isManagementPath = pathname.startsWith('/management');
@@ -12,6 +31,19 @@ export function Sidebar() {
   
   // 기본 경로(/)에서는 사용자 관리 탭이 선택된 상태로 표시
   const isDefaultPath = pathname === '/' || pathname === '';
+  
+  // 로그아웃 핸들러
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      logout();
+      router.push('/login');
+    } catch (error) {
+      console.error("로그아웃 중 오류 발생:", error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
   
   return (
     <div className="w-[240px] bg-gray-900 flex flex-col items-center h-screen overflow-hidden sticky top-0 left-0 pt-10 pb-6 shadow-xl">
@@ -54,7 +86,7 @@ export function Sidebar() {
       </div>
 
       {/* 네비게이션 메뉴 */}
-      <nav className="flex flex-col gap-4 items-start w-full mt-4 px-4">
+      <nav className="flex flex-col gap-4 items-start w-full mt-4 px-4 flex-grow">
         {isBankPath ? (
           <>
             <NavItem 
@@ -112,6 +144,23 @@ export function Sidebar() {
           </>
         )}
       </nav>
+      
+      {/* 로그아웃 버튼 - 하단에 고정 */}
+      <div className="w-full px-4 mt-auto">
+        <button 
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          className="w-full flex items-center justify-between bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg py-3 px-4 transition-colors cursor-pointer active:bg-gray-600"
+        >
+          <div className="flex items-center">
+            <LogOut size={18} className="mr-3" />
+            <span className="text-sm font-medium">로그아웃</span>
+          </div>
+          {isLoggingOut && (
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+          )}
+        </button>
+      </div>
     </div>
   )
 }

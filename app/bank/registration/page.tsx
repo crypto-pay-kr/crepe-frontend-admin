@@ -1,334 +1,397 @@
-'use client'
-
-import React, { useState } from "react"
-import { Landmark, ClipboardCheck } from "lucide-react"
-import WaitingListComponent, { WaitingListItem } from "@/components/common/waiting-list"
+"use client"
+import { useState, useEffect } from "react"
+import { Search, ChevronLeft, ChevronRight, X, Check } from "lucide-react"
 import { ConfirmationModal } from "@/components/common/confirm-modal";
-import MerchantInfoModal from "@/components/bank/store-info-modal";
-import UpbitLoginModal from "@/components/bank/upbit-login-modal";
 
-// 은행 계좌 등록에 필요한 추가 필드 정의
-interface BankAccountRegistration {
-  depositorName: string;
-  userType: string;
-  coin: string;
-  accountNumber: string;
-  accountNumber2: string;
+
+// API URL 설정
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+// 주소 등록 상태 열거형
+enum AddressRegistryStatus {
+  REGISTERING = "REGISTERING",
+  APPROVED = "APPROVED",
+  REJECTED = "REJECTED"
 }
 
-export default function BankAccountRegistrationPage() {
-  const [isBulkModalOpen, setBulkModalOpen] = useState(false);
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-  const [showMerchantModal, setShowMerchantModal] = useState(false);
-  const [showUpbitModal, setShowUpbitModal] = useState(false);
-  const [isLoadingAuthentication, setIsLoadingAuthentication] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<WaitingListItem<BankAccountRegistration> | null>(null);
+// 주소 요청 인터페이스
+interface AddressRequest {
+  id: number;
+  depositor: string;
+  currency: string;
+  address: string;
+  tag: string;
+  addressRegistryStatus: string;
+}
+
+// 페이지네이션 인터페이스
+interface PaginationInfo {
+  totalPages: number;
+  totalElements: number;
+  size: number;
+  number: number; // 현재 페이지 (0부터 시작)
+}
+
+export default function AddressRequests() {
+  // 상태 관리
+  const [addressRequests, setAddressRequests] = useState<AddressRequest[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    totalPages: 0,
+    totalElements: 0,
+    size: 10,
+    number: 0
+  });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(0);
   
-  // 실제 데이터는 API에서 불러올 것이므로 useState로 관리
-  const [waitingListItems, setWaitingListItems] = useState(
-    // 기존 데이터를 새로운 형식으로 변환
-    bankAccountRequests.map(item => ({
-      id: item.id,
-      requestDate: item.requestDate,
-      name: item.depositorName, // 공통 필드인 name으로 매핑
-      type: item.userType, // 공통 필드인 type으로 매핑
-      approveType: item.approveType,
-      approveButtonText: item.approveButtonText,
-      depositorName: item.depositorName,
-      userType: item.userType,
-      coin: item.coin,
-      accountNumber: item.accountNumber,
-      accountNumber2: item.accountNumber2
-    }))
-  );
+  // 모달 상태
+  const [approveModalOpen, setApproveModalOpen] = useState(false);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<AddressRequest | null>(null);
 
-  const handleReject = (id: number, item: WaitingListItem<BankAccountRegistration>) => {
-    console.log(`거절 처리: ${id}`, item);
-    // 여기에 API 호출 등 실제 거절 처리 로직 구현
-  };
-
-  const handleApprove = (id: number, type: string, item: WaitingListItem<BankAccountRegistration>) => {
-    // 선택된 아이템 저장
-    setSelectedItem(item);
+  // 요청 목록 조회 함수
+  const fetchAddressRequests = async (page = 0) => {
+    setLoading(true);
+    setError(null);
     
-    // 아이템의 approveButtonText에 따라 다른 처리
-    if (item.approveButtonText === "해제 완료") {
-      // 해제 완료의 경우 확인 모달 표시
-      setShowConfirmationModal(true);
-    } else if (item.approveButtonText === "변경 완료") {
-      // 변경 완료의 경우 가맹점 정보 모달 표시
-      setShowMerchantModal(true);
-    } else if (item.approveButtonText === "등록완료") {
-      // 등록 완료의 경우 가맹점 정보 모달 표시
-      setShowMerchantModal(true);
-    }
-  };
-
-  // 확인 모달에서 확인 버튼 클릭 처리
-  const handleConfirmAction = () => {
-    setShowConfirmationModal(false);
-    
-    if (!selectedItem) return;
-    
-    // 모달 확인 후 승인 처리
-    processApproval(selectedItem.id);
-  };
-
-  // 가맹점 정보 모달의 다음 버튼 클릭 처리
-  const handleMerchantNext = () => {
-    setShowMerchantModal(false);
-    
-    if (!selectedItem) return;
-    
-    if (selectedItem.approveButtonText === "변경 완료") {
-      // 변경 완료의 경우 확인 모달 표시
-      setShowConfirmationModal(true);
-    } else if (selectedItem.approveButtonText === "등록완료") {
-      // 등록 완료의 경우 업비트 로그인 모달 표시
-      setShowUpbitModal(true);
-    }
-  };
-
-  // 업비트 인증 처리
-  const handleUpbitAuth = (verificationCode: string) => {
-    // 로딩 상태 시작
-    setIsLoadingAuthentication(true);
-    
-    // 실제로는 여기서 API 호출 등으로 인증 프로세스 처리
-    setTimeout(() => {
-      setIsLoadingAuthentication(false);
-      setShowUpbitModal(false);
+    try {
+      // 로컬 스토리지에서 토큰 가져오기
+      const token = localStorage.getItem('accessToken');
       
-      // 업비트 인증 완료 후 확인 모달 표시
-      setShowConfirmationModal(true);
-    }, 2000); // 2초 후 완료 처리 (데모용)
+      if (!token) {
+        throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
+      }
+      
+      // API 요청
+      const response = await fetch(
+        `${API_BASE_URL}/api/admin/address/requests`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`API 오류: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // 데이터 설정
+      setAddressRequests(data.content);
+      setPagination({
+        totalPages: data.totalPages,
+        totalElements: data.totalElements,
+        size: data.size,
+        number: data.number
+      });
+      setCurrentPage(data.number);
+      
+    } catch (err: any) {
+      console.error("주소 요청 목록 조회 실패:", err);
+      setError(err.message || "주소 요청 목록을 불러오는데 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // 실제 승인 처리 로직
-  const processApproval = (id: number) => {
-    // 처리 후 목록에서 제거하는 예시 로직
-    setWaitingListItems(prev => 
-      prev.filter(listItem => listItem.id !== id)
-    );
-    
-    // 실제 구현에서는 API 호출 등을 통해 요청 확인 처리
-    setSelectedItem(null);
+  // 컴포넌트 마운트 시 요청 목록 조회
+  useEffect(() => {
+    fetchAddressRequests();
+  }, []);
+
+  // 요청 승인 처리
+  const handleApprove = (request: AddressRequest) => {
+    setSelectedRequest(request);
+    setApproveModalOpen(true);
   };
 
-  const handleSearch = (searchText: string) => {
-    console.log('검색어:', searchText);
-    // 실제 구현에서는 API 호출 또는 클라이언트 측 필터링
+  // 요청 반려 처리
+  const handleReject = (request: AddressRequest) => {
+    setSelectedRequest(request);
+    setRejectModalOpen(true);
   };
 
-  const handleBulkRegistration = () => {
-    setBulkModalOpen(true);
-    console.log('일괄 계좌 등록 모달 열기');
-  };
-
-  const handleBulkConfirm = (selectedIds: number[]) => {
-    console.log('일괄 승인 처리:', selectedIds);
+  // 요청 승인 확인
+  const handleConfirmApprove = async () => {
+    if (!selectedRequest) return;
     
-    // 처리 후 목록에서 제거하는 예시 로직
-    setWaitingListItems(prev => 
-      prev.filter(item => !selectedIds.includes(item.id))
-    );
-    
-    // 실제 구현에서는 API 호출 등 실제 일괄 승인 처리 로직 구현
-  };
-
-  // 인터페이스 및 컬럼 정의
-  interface Column {
-    key: string;
-    header: string;
-    render?: (value: string, item?: WaitingListItem<BankAccountRegistration>) => React.ReactNode;
-  }
-
-  const columns: Column[] = [
-    {
-      key: 'requestDate',
-      header: '요청 일자',
-    },
-    {
-      key: 'name',
-      header: '입금자 명',
-      render: (value: string) => (
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center text-pink-600 font-medium">
-            {value.charAt(0)}
-          </div>
-          <span className="font-medium text-gray-800">{value}</span>
-        </div>
-      )
-    },
-    {
-      key: 'type',
-      header: '타입',
-      render: (value: string) => (
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-          value === "가맹점" 
-            ? "bg-blue-100 text-blue-700" 
-            : "bg-purple-100 text-purple-700"
-        }`}>
-          {value}
-        </span>
-      )
-    },
-    {
-      key: 'coin',
-      header: '코인',
-    },
-    {
-      key: 'accountNumber',
-      header: '계좌번호',
-    },
-    {
-      key: 'accountNumber2',
-      header: '계좌번호2',
-    },
-  ];
-
-  // 추가 액션 버튼
-  const extraActionButton = (
-    <button 
-      onClick={handleBulkRegistration}
-      className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all bg-white text-pink-500 border border-pink-500 hover:bg-pink-50"
-    >
-      <ClipboardCheck size={16} className="text-pink-500" />
-      한번에 여러 계좌 등록하기 (최대 20명)
-    </button>
-  );
-
-  // 확인 모달 메시지 및 제목 설정
-  const getConfirmationModalProps = () => {
-    if (!selectedItem) return { title: "", actionText: "", targetName: "" };
-    
-    let title = "확인";
-    let actionText = "";
-    
-    switch (selectedItem.approveButtonText) {
-      case "해제 완료":
-        title = "계좌 해제 확인";
-        actionText = "해제";
-        break;
-      case "변경 완료":
-        title = "가맹점 정보 변경 확인";
-        actionText = "변경";
-        break;
-      case "등록완료":
-        title = "계좌 등록 확인";
-        actionText = "등록";
-        break;
+    try {
+      const token = localStorage.getItem('accessToken');
+      
+      if (!token) {
+        throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
+      }
+      
+      // API 호출 - 수정된 엔드포인트
+      const response = await fetch(`${API_BASE_URL}/api/admin/address/approve?accountId=${selectedRequest.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API 오류: ${response.status}`);
+      }
+      
+      // 성공 메시지 표시
+      setSuccess(`${selectedRequest.depositor}의 주소 등록 요청이 승인되었습니다.`);
+      setTimeout(() => setSuccess(null), 3000);
+      
+      // 목록 갱신
+      fetchAddressRequests(currentPage);
+      
+    } catch (err: any) {
+      console.error("주소 요청 승인 실패:", err);
+      setError(err.message || "주소 요청 승인에 실패했습니다.");
+      setTimeout(() => setError(null), 5000);
     }
     
-    return { 
-      title, 
-      actionText, 
-      targetName: selectedItem.depositorName
-    };
+    setApproveModalOpen(false);
   };
 
-  const modalProps = getConfirmationModalProps();
+  // 요청 반려 확인
+  const handleConfirmReject = async () => {
+    if (!selectedRequest) return;
+    
+    try {
+      const token = localStorage.getItem('accessToken');
+      
+      if (!token) {
+        throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
+      }
+      
+      // API 호출 - 반려 엔드포인트
+      const response = await fetch(`${API_BASE_URL}/api/admin/address/disapprove?accountId=${selectedRequest.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API 오류: ${response.status}`);
+      }
+      
+      setSuccess(`${selectedRequest.depositor}의 주소 등록 요청이 반려되었습니다.`);
+      setTimeout(() => setSuccess(null), 3000);
+      
+      fetchAddressRequests(currentPage);
+      
+    } catch (err: any) {
+      console.error("주소 요청 반려 실패:", err);
+      setError(err.message || "주소 요청 반려에 실패했습니다.");
+      setTimeout(() => setError(null), 5000);
+    }
+    
+    setRejectModalOpen(false);
+  };
+
+  // 페이지 변경 처리
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 0 && newPage < pagination.totalPages) {
+      fetchAddressRequests(newPage);
+    }
+  };
+
+  // 검색어 처리
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  // 검색어에 따라 필터링된 주소 요청 목록
+  const filteredRequests = addressRequests.filter(request => 
+    request.depositor.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <>
-      <WaitingListComponent
-        title="은행 계좌 등록 대기 리스트"
-        subtitle="신규 정산 계좌 등록 대기"
-        subtitleIcon={<Landmark size={18} className="text-pink-500" />}
-        items={waitingListItems}
-        columns={columns}
-        searchPlaceholder="유저 또는 계좌 검색"
-        onApprove={handleApprove}
-        onReject={handleReject}
-        onSearch={handleSearch}
-        extraActionButton={extraActionButton}
-        rejectModalTitle="계좌 등록 거절 확인"
-        rejectModalTargetType="등록 요청"
-        rejectModalActionText="거절"
+    <div className="min-h-screen bg-gray-50 p-6 relative">
+      {/* 성공 메시지 - 플로팅 형태 */}
+      {success && (
+        <div className="fixed top-5 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md">
+          <div className="mx-4 p-3 bg-green-50 border border-green-100 text-green-600 rounded-md shadow-md">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              {success}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-sm overflow-hidden">
+        {/* 헤더 섹션 */}
+        <div className="p-6 border-b border-gray-100">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-gray-800">출금 주소 등록 요청</h1>
+          </div>
+        </div>
+        
+        {/* 검색 및 필터 */}
+        <div className="p-6 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="은행명 검색"
+                value={searchTerm}
+                onChange={handleSearchChange}
+                className="pl-10 pr-4 py-2.5 bg-gray-50 border-none rounded-lg w-[300px] focus:ring-2 focus:ring-pink-200 focus:outline-none transition-all"
+              />
+              <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            </div>
+          </div>
+        </div>
+        
+        {/* 에러 메시지 */}
+        {error && (
+          <div className="px-6 py-3 my-2 text-red-500 bg-red-50 border border-red-100 rounded-md">
+            {error}
+          </div>
+        )}
+        
+        {/* 로딩 상태 */}
+        {loading ? (
+          <div className="p-6 text-center text-gray-500">
+            <div className="animate-spin inline-block w-6 h-6 border-2 border-gray-300 border-t-pink-500 rounded-full mb-2"></div>
+            <p>주소 요청 목록을 불러오는 중...</p>
+          </div>
+        ) : (
+          /* 주소 요청 테이블 */
+          <div className="px-6 pb-6">
+            {filteredRequests.length === 0 ? (
+              <div className="p-6 text-center text-gray-500 border border-gray-100 rounded-lg">
+                {searchTerm ? '검색 결과가 없습니다.' : '등록 요청된 주소가 없습니다.'}
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-gray-100">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="py-3 px-4 text-left font-bold text-gray-500 text-sm">#</th>
+                      <th className="py-3 px-4 text-left font-bold text-gray-500 text-sm">은행</th>
+                      <th className="py-3 px-4 text-left font-bold text-gray-500 text-sm">통화</th>
+                      <th className="py-3 px-4 text-left font-bold text-gray-500 text-sm">주소</th>
+                      <th className="py-3 px-4 text-left font-bold text-gray-500 text-sm">태그</th>
+                      <th className="py-3 px-4 text-middle font-bold text-gray-500 text-sm">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRequests.map((request, index) => (
+                      <tr key={request.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
+                        <td className="py-4 px-4 text-gray-800">{index + 1}</td>
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center text-pink-600 font-medium">
+                              {request.depositor.charAt(0)}
+                            </div>
+                            <span className="font-medium text-gray-800">{request.depositor}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-gray-600">{request.currency}</td>
+                        <td className="py-4 px-4 text-gray-600 font-mono">
+                          <div className="max-w-xs truncate">
+                            {request.address}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-gray-600 font-mono">{request.tag || '-'}</td>
+                        <td className="py-4 px-4">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => handleReject(request)}
+                              className="px-3 py-1.5 rounded-md text-sm font-medium border border-gray-300 text-gray-600 hover:bg-gray-50 transition-all flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <X size={14} /> 반려
+                            </button>
+                            
+                            <button
+                              onClick={() => handleApprove(request)}
+                              className="px-3 py-1.5 rounded-md text-sm font-medium border border-pink-500 bg-pink-500 text-white hover:bg-pink-600 transition-all flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Check size={14} /> 승인
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            
+            {/* 페이지네이션 */}
+            {pagination.totalPages > 1 && (
+              <div className="flex flex-col items-center mt-6 gap-4">
+                <nav className="flex items-center justify-center gap-1">
+                  <button 
+                    className="w-9 h-9 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 transition-colors"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 0}
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  
+                  {Array.from({ length: pagination.totalPages }).map((_, index) => (
+                    <button
+                      key={index}
+                      className={`w-9 h-9 flex items-center justify-center rounded-md ${
+                        currentPage === index
+                          ? "bg-pink-500 text-white font-medium"
+                          : "text-gray-600 hover:bg-gray-100"
+                      } transition-colors`}
+                      onClick={() => handlePageChange(index)}
+                    >
+                      {index + 1}
+                    </button>
+                  ))}
+                  
+                  <button
+                    className="w-9 h-9 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 transition-colors"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === pagination.totalPages - 1}
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </nav>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      
+      {/* 승인 확인 모달 */}
+      <ConfirmationModal
+        isOpen={approveModalOpen}
+        onClose={() => setApproveModalOpen(false)}
+        onConfirm={handleConfirmApprove}
+        title="주소 승인 확인"
+        targetName={selectedRequest?.depositor || ""}
+        targetType="은행"
+        actionText="주소 등록 승인"
+        customMessage={`"${selectedRequest?.depositor}" 은행의 "${selectedRequest?.currency}" 주소 등록 요청을 승인하시겠습니까?`}
       />
       
-      {/* 확인 모달 */}
-      {showConfirmationModal && (
-        <ConfirmationModal
-          isOpen={showConfirmationModal}
-          onClose={() => setShowConfirmationModal(false)}
-          onConfirm={handleConfirmAction}
-          title={modalProps.title}
-          targetName={modalProps.targetName}
-          targetType="정보"
-          actionText={modalProps.actionText}
-        />
-      )}
-      
-      {/* 가맹점 정보 모달 */}
-      {showMerchantModal && <MerchantInfoModal onNext={handleMerchantNext} />}
-      
-      {/* 업비트 로그인 모달 */}
-      {showUpbitModal && (
-        <UpbitLoginModal 
-          onComplete={handleUpbitAuth}
-          isLoading={isLoadingAuthentication}
-        />
-      )}
-    </>
+      {/* 반려 확인 모달 */}
+      <ConfirmationModal
+        isOpen={rejectModalOpen}
+        onClose={() => setRejectModalOpen(false)}
+        onConfirm={handleConfirmReject}
+        title="주소 반려 확인"
+        targetName={selectedRequest?.depositor || ""}
+        targetType="은행"
+        actionText="주소 등록 반려"
+        customMessage={`"${selectedRequest?.depositor}" 은행의 "${selectedRequest?.currency}" 주소 등록 요청을 반려하시겠습니까?`}
+      />
+    </div>
   )
 }
-
-// 데이터를 컴포넌트 외부로 이동 - 올바른 계좌 등록 데이터 형식
-const bankAccountRequests = [
-  {
-    id: 1,
-    requestDate: "2025/01/07",
-    depositorName: "홍길동",
-    userType: "가맹점",
-    coin: "XRP",
-    accountNumber: "880912",
-    accountNumber2: "010-0000-0000",
-    approveType: "release",
-    approveButtonText: "해제 완료",
-  },
-  {
-    id: 2,
-    requestDate: "2025/01/07",
-    depositorName: "김영희",
-    userType: "유저",
-    coin: "USDT",
-    accountNumber: "880912",
-    accountNumber2: "010-0000-0000",
-    approveType: "change",
-    approveButtonText: "변경 완료",
-  },
-  {
-    id: 3,
-    requestDate: "2025/01/07",
-    depositorName: "이철수",
-    userType: "유저",
-    coin: "아기호랑이",
-    accountNumber: "880912",
-    accountNumber2: "010-0000-0000",
-    approveType: "register",
-    approveButtonText: "등록완료",
-  },
-  {
-    id: 4,
-    requestDate: "2025/01/07",
-    depositorName: "박민수",
-    userType: "가맹점",
-    coin: "아기호랑이",
-    accountNumber: "880912",
-    accountNumber2: "010-0000-0000",
-    approveType: "register",
-    approveButtonText: "등록완료",
-  },
-  {
-    id: 5,
-    requestDate: "2025/01/07",
-    depositorName: "정지원",
-    userType: "유저",
-    coin: "아기호랑이",
-    accountNumber: "880912",
-    accountNumber2: "010-0000-0000",
-    approveType: "register",
-    approveButtonText: "등록완료",
-  },
-];
