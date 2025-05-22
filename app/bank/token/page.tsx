@@ -326,6 +326,7 @@ export default function TokenRequests() {
             <h1 className="text-2xl font-bold text-gray-800">토큰 발행 요청</h1>
           </div>
         </div>
+        
         <div className="p-6 bg-white">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="relative">
