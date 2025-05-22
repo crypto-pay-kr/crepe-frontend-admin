@@ -13,10 +13,12 @@ interface AccountBalance {
 
 interface AccountInfo {
   coinName: string;
+  currency: string; // currency 필드 추가
   depositorName: string;
   coinAccount: string;
   tagAccount?: string;
   balance: AccountBalance;
+  status: string;
 }
 
 interface AccountInfoProps {
@@ -51,6 +53,22 @@ export default function AccountInfoComponent({
     closeModal()
   }
 
+  // 상태에 따른 스타일과 텍스트 반환 함수
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'APPROVED':
+        return <span className="px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium">승인됨</span>;
+      case 'REGISTERING':
+        return <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-medium">등록 대기중</span>;
+      case 'REJECTED':
+        return <span className="px-2 py-1 bg-red-100 text-red-700 rounded-md text-xs font-medium">반려됨</span>;
+      case 'NOT_REGISTERED':
+        return <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs font-medium">미등록</span>;
+      default:
+        return <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs font-medium">{status}</span>;
+    }
+  };
+
   return (
     <div className="flex h-screen bg-white">
       {/* 메인 콘텐츠 */}
@@ -75,40 +93,52 @@ export default function AccountInfoComponent({
           {/* 계좌 정보 테이블 */}
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="py-3 px-4 text-left font-medium text-gray-600">코인 명</th>
-                  <th className="py-3 px-4 text-left font-medium text-gray-600">입금자 명</th>
-                  <th className="py-3 px-4 text-left font-medium text-gray-600">코인 계좌</th>
-                  <th className="py-3 px-4 text-left font-medium text-gray-600">Tag 계좌</th>
-                  <th className="py-3 px-4 text-left font-medium text-gray-600">balance</th>
-                  <th className="py-3 px-4 text-center font-medium text-gray-600">관리</th>
-                </tr>
-              </thead>
-              <tbody>
-                {accounts.map((account, index) => (
-                  <tr key={index} className="border-b border-gray-100">
-                    <td className="py-4 px-4 text-gray-800">{account.coinName}</td>
-                    <td className="py-4 px-4 text-gray-800">{account.depositorName}</td>
-                    <td className="py-4 px-4 text-gray-800 max-w-xs truncate">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="py-3 px-4 text-left font-medium text-gray-600">코인 종류</th>
+                <th className="py-3 px-4 text-left font-medium text-gray-600">계좌 주소</th>
+                <th className="py-3 px-4 text-left font-medium text-gray-600">태그</th>
+                <th className="py-3 px-4 text-left font-medium text-gray-600">잔액</th>
+                <th className="py-3 px-4 text-left font-medium text-gray-600">상태</th>
+                <th className="py-3 px-4 text-center font-medium text-gray-600">관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              {accounts.map((account, index) => (
+                <tr key={index} className="border-b border-gray-100">
+                  <td className="py-4 px-4 text-gray-800">
+                    {account.coinName} {account.currency && `(${account.currency})`}
+                  </td>
+                  <td className="py-4 px-4 text-gray-800 max-w-xs truncate font-mono">
+                    {account.coinAccount === "-" ? (
+                      <span className="text-gray-400">미등록</span>
+                    ) : (
                       <span title={account.coinAccount}>{account.coinAccount}</span>
-                    </td>
-                    <td className="py-4 px-4 text-gray-800">{account.tagAccount || "-"}</td>
-                    <td className="py-4 px-4">
-                      <div className="font-medium">{account.balance.fiat}</div>
-                      <div className="text-sm text-gray-500">{account.balance.crypto}</div>
-                    </td>
-                    <td className="py-4 px-4 text-center">
+                    )}
+                  </td>
+                  <td className="py-4 px-4 text-gray-800 font-mono">{account.tagAccount || "-"}</td>
+                  <td className="py-4 px-4">
+                    <div className="text-sm text-gray-600">{account.balance.crypto}</div>
+                    {account.balance.fiat !== "0 KRW" && (
+                      <div className="text-xs text-gray-500">{account.balance.fiat}</div>
+                    )}
+                  </td>
+                  <td className="py-4 px-4">
+                    {getStatusBadge(account.status)}
+                  </td>
+                  <td className="py-4 px-4 text-center">
+                    {account.coinAccount !== "-" && account.status === 'ACTIVE' && (
                       <button
                         onClick={() => openModal(account)}
                         className="px-4 py-1 rounded-md text-sm border border-gray-300 hover:bg-gray-50"
                       >
                         연결 해제
                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
             </table>
           </div>
         </div>
