@@ -1,11 +1,17 @@
 'use client'
 
-import React, { useState } from "react"
+import React, {useEffect, useState} from "react"
 import { Landmark, ClipboardCheck } from "lucide-react"
 import WaitingListComponent, { WaitingListItem } from "@/components/common/waiting-list"
 import { ConfirmationModal } from "@/components/common/confirm-modal";
 import MerchantInfoModal from "@/components/bank/store-info-modal";
 import UpbitLoginModal from "@/components/bank/upbit-login-modal";
+import {
+  approveUnregisterRequest,
+  approveWithdrawAddress,
+  fetchPendingWithdrawAddresses,
+  rejectAddressRequest
+} from "@/api/adminAccountApi";
 
 // 은행 계좌 등록에 필요한 추가 필드 정의
 interface BankAccountRegistration {
@@ -23,28 +29,62 @@ export default function BankAccountRegistrationPage() {
   const [showUpbitModal, setShowUpbitModal] = useState(false);
   const [isLoadingAuthentication, setIsLoadingAuthentication] = useState(false);
   const [selectedItem, setSelectedItem] = useState<WaitingListItem<BankAccountRegistration> | null>(null);
-  
-  // 실제 데이터는 API에서 불러올 것이므로 useState로 관리
-  const [waitingListItems, setWaitingListItems] = useState(
-    // 기존 데이터를 새로운 형식으로 변환
-    bankAccountRequests.map(item => ({
-      id: item.id,
-      requestDate: item.requestDate,
-      name: item.depositorName, // 공통 필드인 name으로 매핑
-      type: item.userType, // 공통 필드인 type으로 매핑
-      approveType: item.approveType,
-      approveButtonText: item.approveButtonText,
-      depositorName: item.depositorName,
-      userType: item.userType,
-      coin: item.coin,
-      accountNumber: item.accountNumber,
-      accountNumber2: item.accountNumber2
-    }))
-  );
+  const statuses = ['REGISTERING', 'UNREGISTERED_AND_REGISTERING', 'UNREGISTERED'];
+  const [waitingListItems, setWaitingListItems] = useState<WaitingListItem<BankAccountRegistration>[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const handleReject = (id: number, item: WaitingListItem<BankAccountRegistration>) => {
+
+  const loadPendingAddresses = async (targetPage: number) => {
+    try {
+      const result = await fetchPendingWithdrawAddresses(statuses, targetPage, 5,true);
+
+      // 페이지 정보 업데이트
+      setCurrentPage(result.number);
+      setTotalPages(result.totalPages);
+      // 실제 아이템 리스트 설정
+      setWaitingListItems(
+          result.content.map((item): WaitingListItem<BankAccountRegistration> => ({
+            id: item.id,
+            requestDate: item.createdAt.split('T')[0],
+            name: item.depositor,
+            type:'은행',
+            approveType: item.addressRegistryStatus,
+            approveButtonText: getApproveButtonText(item.addressRegistryStatus),
+            depositorName: item.depositor,
+            userType: item.userType,
+            coin: item.currency,
+            accountNumber: item.address,
+            accountNumber2: item.tag ?? '-',
+          }))
+      );
+    } catch (e) {
+      console.error('계좌 목록 불러오기 실패', e);
+    }
+  };
+
+
+  useEffect(() => {
+    loadPendingAddresses(0);
+  }, []);
+
+  const getApproveButtonText = (status: string) => {
+    switch (status) {
+      case 'REGISTERING':
+        return '등록 완료';
+      case 'UNREGISTERED_AND_REGISTERING':
+        return '변경 완료';
+      case 'UNREGISTERED':
+        return '해제 완료';
+      default:
+        return '승인';
+    }
+  };
+
+  const handleReject =async (id: number, item: WaitingListItem<BankAccountRegistration>) => {
+    await rejectAddressRequest(id);
+    await loadPendingAddresses(0);
     console.log(`거절 처리: ${id}`, item);
-    // 여기에 API 호출 등 실제 거절 처리 로직 구현
   };
 
   const handleApprove = (id: number, type: string, item: WaitingListItem<BankAccountRegistration>) => {
@@ -64,14 +104,25 @@ export default function BankAccountRegistrationPage() {
     }
   };
 
-  // 확인 모달에서 확인 버튼 클릭 처리
-  const handleConfirmAction = () => {
+
+  // 계좌 승인 완료
+  const handleConfirmAction = async () => {
     setShowConfirmationModal(false);
-    
+
     if (!selectedItem) return;
-    
-    // 모달 확인 후 승인 처리
-    processApproval(selectedItem.id);
+
+    try {
+      if (selectedItem.approveButtonText === "해제 완료") {
+        await approveUnregisterRequest(selectedItem.id);
+      } else {
+        await approveWithdrawAddress(selectedItem.id);
+      }
+      await loadPendingAddresses(0);
+    } catch (error) {
+      alert("계좌 승인 실패");
+    } finally {
+      setSelectedItem(null);
+    }
   };
 
   // 가맹점 정보 모달의 다음 버튼 클릭 처리
@@ -104,16 +155,6 @@ export default function BankAccountRegistrationPage() {
     }, 2000); // 2초 후 완료 처리 (데모용)
   };
 
-  // 실제 승인 처리 로직
-  const processApproval = (id: number) => {
-    // 처리 후 목록에서 제거하는 예시 로직
-    setWaitingListItems(prev => 
-      prev.filter(listItem => listItem.id !== id)
-    );
-    
-    // 실제 구현에서는 API 호출 등을 통해 요청 확인 처리
-    setSelectedItem(null);
-  };
 
   const handleSearch = (searchText: string) => {
     console.log('검색어:', searchText);
@@ -165,7 +206,7 @@ export default function BankAccountRegistrationPage() {
       header: '타입',
       render: (value: string) => (
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-          value === "가맹점" 
+          value === "은행" 
             ? "bg-blue-100 text-blue-700" 
             : "bg-purple-100 text-purple-700"
         }`}>
@@ -237,6 +278,12 @@ export default function BankAccountRegistrationPage() {
         subtitleIcon={<Landmark size={18} className="text-pink-500" />}
         items={waitingListItems}
         columns={columns}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={(page:number) => {
+          setCurrentPage(page);
+          loadPendingAddresses(page); // 해당 페이지로 API 요청
+        }}
         searchPlaceholder="유저 또는 계좌 검색"
         onApprove={handleApprove}
         onReject={handleReject}
@@ -273,62 +320,3 @@ export default function BankAccountRegistrationPage() {
     </>
   )
 }
-
-// 데이터를 컴포넌트 외부로 이동 - 올바른 계좌 등록 데이터 형식
-const bankAccountRequests = [
-  {
-    id: 1,
-    requestDate: "2025/01/07",
-    depositorName: "홍길동",
-    userType: "가맹점",
-    coin: "XRP",
-    accountNumber: "880912",
-    accountNumber2: "010-0000-0000",
-    approveType: "release",
-    approveButtonText: "해제 완료",
-  },
-  {
-    id: 2,
-    requestDate: "2025/01/07",
-    depositorName: "김영희",
-    userType: "유저",
-    coin: "USDT",
-    accountNumber: "880912",
-    accountNumber2: "010-0000-0000",
-    approveType: "change",
-    approveButtonText: "변경 완료",
-  },
-  {
-    id: 3,
-    requestDate: "2025/01/07",
-    depositorName: "이철수",
-    userType: "유저",
-    coin: "아기호랑이",
-    accountNumber: "880912",
-    accountNumber2: "010-0000-0000",
-    approveType: "register",
-    approveButtonText: "등록완료",
-  },
-  {
-    id: 4,
-    requestDate: "2025/01/07",
-    depositorName: "박민수",
-    userType: "가맹점",
-    coin: "아기호랑이",
-    accountNumber: "880912",
-    accountNumber2: "010-0000-0000",
-    approveType: "register",
-    approveButtonText: "등록완료",
-  },
-  {
-    id: 5,
-    requestDate: "2025/01/07",
-    depositorName: "정지원",
-    userType: "유저",
-    coin: "아기호랑이",
-    accountNumber: "880912",
-    accountNumber2: "010-0000-0000",
-    approveType: "register",
-    approveButtonText: "등록완료",
-  },
-];
