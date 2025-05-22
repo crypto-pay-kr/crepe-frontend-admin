@@ -1,24 +1,36 @@
 "use client"
 
 import { useState } from "react"
-import { Search, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
+import { Search, ArrowLeft, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react"
 import { ConfirmationModal } from "./confirm-modal";
-// 기존 모달 대신 개선된 모달 import
 
-// 정지된 항목(유저 또는 은행) 타입
-interface SuspendedItem {
+// 기본 정지 아이템 인터페이스
+interface BaseSuspendedItem {
   id: number;
-  name: string;  // 유저명 또는 은행명
+  name: string;
   suspendedDate: string;
+}
+
+// 은행 정지 아이템
+interface SuspendedBank extends BaseSuspendedItem {
+  bankPhoneNum: string;
+  totalSupply: number;
+}
+
+// 사용자 정지 아이템
+interface SuspendedUser extends BaseSuspendedItem {
   suspensionPeriod: string;
   reason: string;
 }
 
+// 유니온 타입으로 두 타입을 모두 허용
+type SuspendedItem = SuspendedBank | SuspendedUser;
+
 interface SuspendedListProps {
   onBack: () => void;
-  type: 'user' | 'bank';  // 유저 또는 은행 타입
-  items: SuspendedItem[];  // 정지된 항목 목록
-  onRemoveSuspension?: (ids: number[]) => void;  // 정지 해제 콜백 (옵션)
+  type: 'user' | 'bank';
+  items: SuspendedItem[];
+  onRemoveSuspension?: (id: number) => void;
 }
 
 export default function SuspendedList({ 
@@ -27,48 +39,58 @@ export default function SuspendedList({
   items,
   onRemoveSuspension 
 }: SuspendedListProps) {
-  const [selectedItems, setSelectedItems] = useState<number[]>([])
-  const [selectAll, setSelectAll] = useState(false)
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
+  const [selectedItemName, setSelectedItemName] = useState<string>("");
 
   // 타입에 따른 텍스트 설정
   const getTypeText = () => {
     return type === 'user' ? '유저' : '은행';
   }
 
-  const toggleSelectAll = () => {
-    if (selectAll) {
-      setSelectedItems([])
-    } else {
-      setSelectedItems(items.map((item) => item.id))
-    }
-    setSelectAll(!selectAll)
-  }
-
-  const toggleSelectItem = (itemId: number) => {
-    if (selectedItems.includes(itemId)) {
-      setSelectedItems(selectedItems.filter((id) => id !== itemId))
-    } else {
-      setSelectedItems([...selectedItems, itemId])
-    }
-  }
-
-  const handleRemoveSuspension = () => {
-    if (selectedItems.length > 0) {
-      setIsModalOpen(true)
-    }
+  const handleReactivateClick = (id: number, name: string) => {
+    setSelectedItemId(id);
+    setSelectedItemName(name);
+    setIsModalOpen(true);
   }
   
   const confirmRemoveSuspension = () => {
-    console.log(`${getTypeText()} 이용정지 해제:`, selectedItems)
-    // 실제 구현에서는 API 호출 등을 통해 이용정지 해제 처리
-    if (onRemoveSuspension) {
-      onRemoveSuspension(selectedItems);
+    if (selectedItemId !== null && onRemoveSuspension) {
+      console.log(`${getTypeText()} 이용정지 해제:`, selectedItemId);
+      onRemoveSuspension(selectedItemId);
     }
-    setIsModalOpen(false)
-    setSelectedItems([]);
-    setSelectAll(false);
+    setIsModalOpen(false);
+    setSelectedItemId(null);
   }
+
+  // 검색어 처리
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  // 검색어로 아이템 필터링
+  const filteredItems = items.filter(item => 
+    item.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // 금액 포맷팅 함수
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('ko-KR', { 
+      style: 'currency', 
+      currency: 'KRW',
+      maximumFractionDigits: 0 
+    }).format(amount);
+  };
+
+  // 타입 가드 함수들
+  const isSuspendedBank = (item: SuspendedItem): item is SuspendedBank => {
+    return 'bankPhoneNum' in item && 'totalSupply' in item;
+  };
+
+  const isSuspendedUser = (item: SuspendedItem): item is SuspendedUser => {
+    return 'suspensionPeriod' in item && 'reason' in item;
+  };
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -92,22 +114,15 @@ export default function SuspendedList({
             </div>
           </div>
 
-          {/* 액션 버튼 및 검색 */}
+          {/* 검색 */}
           <div className="p-6 bg-white">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <button
-                onClick={handleRemoveSuspension}
-                disabled={selectedItems.length === 0}
-                className={`px-4 py-2.5 rounded-lg text-sm font-medium text-white ${
-                  selectedItems.length > 0 ? "bg-gradient-to-r from-pink-500 to-rose-400 hover:shadow active:scale-95" : "bg-gray-400"
-                } transition-all`}
-              >
-                이용정지 해제
-              </button>
-              <div className="relative">
+              <div className="relative ml-auto">
                 <input
                   type="text"
-                  placeholder={`${getTypeText()} ${type === 'user' ? '아이디' : '명'} 검색`}
+                  placeholder={`${getTypeText()} 명 검색`}
+                  value={searchTerm}
+                  onChange={handleSearchChange}
                   className="pl-10 pr-4 py-2.5 bg-gray-50 border-none rounded-lg w-[300px] focus:ring-2 focus:ring-pink-200 focus:outline-none transition-all"
                 />
                 <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -117,49 +132,70 @@ export default function SuspendedList({
 
           {/* 항목 테이블 */}
           <div className="px-6 pb-6">
-            <div className="overflow-x-auto rounded-lg border border-gray-100">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="py-3 px-4 text-left">
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={selectAll}
-                          onChange={toggleSelectAll}
-                          className="mr-2 h-4 w-4 accent-pink-500"
-                        />
-                        <span className="font-medium text-gray-500 text-sm">선택</span>
-                      </div>
-                    </th>
-                    <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">
-                      {type === 'user' ? '아이디' : '은행명'}
-                    </th>
-                    <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">이용정지 일자</th>
-                    <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">이용정지 기간</th>
-                    <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">이용정지 사유</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => (
-                    <tr key={item.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
-                      <td className="py-4 px-4">
-                        <input
-                          type="checkbox"
-                          checked={selectedItems.includes(item.id)}
-                          onChange={() => toggleSelectItem(item.id)}
-                          className="h-4 w-4 accent-pink-500"
-                        />
-                      </td>
-                      <td className="py-4 px-4 text-gray-800">{item.name}</td>
-                      <td className="py-4 px-4 text-gray-600">{item.suspendedDate}</td>
-                      <td className="py-4 px-4 text-gray-600">{item.suspensionPeriod}</td>
-                      <td className="py-4 px-4 text-gray-600 max-w-md truncate">{item.reason}</td>
+            {filteredItems.length === 0 ? (
+              <div className="p-6 text-center text-gray-500 border border-gray-100 rounded-lg">
+                {searchTerm ? '검색 결과가 없습니다.' : `이용정지된 ${getTypeText()}이 없습니다.`}
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-gray-100">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">#</th>
+                      <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">
+                        {type === 'bank' ? '은행명' : '유저명'}
+                      </th>
+                      <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">이용정지 일자</th>
+                      {type === 'bank' ? (
+                        <>
+                          <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">담당 부서 번호</th>
+                          <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">예치 자본금</th>
+                        </>
+                      ) : (
+                        <>
+                          <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">정지 기간</th>
+                          <th className="py-3 px-4 text-left font-medium text-gray-500 text-sm">정지 사유</th>
+                        </>
+                      )}
+                      <th className="py-3 px-4 text-center font-medium text-gray-500 text-sm">관리</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {filteredItems.map((item) => (
+                      <tr key={item.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
+                        <td className="py-4 px-4 text-gray-800">{item.id}</td>
+                        <td className="py-4 px-4 text-gray-800 font-medium">{item.name}</td>
+                        <td className="py-4 px-4 text-gray-600">{item.suspendedDate}</td>
+                        {type === 'bank' && isSuspendedBank(item) ? (
+                          <>
+                            <td className="py-4 px-4 text-gray-600">{item.bankPhoneNum}</td>
+                            <td className="py-4 px-4 text-gray-600">{formatCurrency(item.totalSupply)}</td>
+                          </>
+                        ) : type === 'user' && isSuspendedUser(item) ? (
+                          <>
+                            <td className="py-4 px-4 text-gray-600">{item.suspensionPeriod}</td>
+                            <td className="py-4 px-4 text-gray-600 max-w-xs truncate" title={item.reason}>
+                              {item.reason}
+                            </td>
+                          </>
+                        ) : null}
+                        <td className="py-4 px-4">
+                          <div className="flex justify-center">
+                            <button
+                              onClick={() => handleReactivateClick(item.id, item.name)}
+                              className="px-3 py-1.5 rounded-md text-sm font-medium border border-pink-500 text-pink-500 hover:bg-pink-50 transition-all flex items-center"
+                            >
+                              <RotateCcw className="w-4 h-4 mr-2" />
+                              이용정지 해제
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* 페이지네이션 */}
             <div className="flex flex-col items-center mt-6 gap-4">
@@ -176,18 +212,6 @@ export default function SuspendedList({
                   2
                 </button>
                 
-                <button className="w-9 h-9 flex items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 transition-colors">
-                  3
-                </button>
-                
-                <button className="w-9 h-9 flex items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 transition-colors">
-                  ...
-                </button>
-                
-                <button className="w-9 h-9 flex items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 transition-colors">
-                  5
-                </button>
-                
                 <button className="w-9 h-9 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 transition-colors">
                   <ChevronRight size={18} />
                 </button>
@@ -197,17 +221,16 @@ export default function SuspendedList({
         </div>
       </div>
 
-      {/* 개선된 확인 모달 */}
+      {/* 확인 모달 */}
       <ConfirmationModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onConfirm={confirmRemoveSuspension}
         title="이용정지 해제 확인"
-        targetName={`${selectedItems.length}개의 ${getTypeText()}`}
-        targetType=""
+        targetName={selectedItemName}
+        targetType={getTypeText()}
         actionText="이용정지 해제"
       />
-      
     </div>
   )
 }

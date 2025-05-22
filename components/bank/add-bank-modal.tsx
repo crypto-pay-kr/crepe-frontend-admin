@@ -2,35 +2,42 @@
 import { useState } from "react"
 import { X, Upload } from "lucide-react"
 import type React from "react"
+import { useAuthContext } from "@/context/AuthContext" // AuthContext import 추가
 
-// 은행 데이터 인터페이스 정의
+// 환경 변수에서 API URL 가져오기
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
+// 은행 데이터 인터페이스 수정 (API 요구사항에 맞게)
 interface BankData {
-  id: string;
+  email: string;          // id -> email로 변경
   password: string;
-  passwordConfirm: string;
-  bankName: string;
+  name: string;           // bankName -> name으로 변경
   bankCode: string;
-  managerPhone: string;
-  bankImage: File | null;
+  bankPhoneNum: string;   // managerPhone -> bankPhoneNum으로 변경
 }
 
 // 모달 컴포넌트 props 인터페이스
 interface BankModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (bankData: BankData) => void;
+  onSubmit?: (response: any) => void;  // 선택적 콜백 (성공 응답 처리용)
 }
 
 const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) => {
+  const { isAuthenticated } = useAuthContext(); // AuthContext 사용
   const [formData, setFormData] = useState<BankData>({
-    id: "",
+    email: "",
     password: "",
-    passwordConfirm: "",
-    bankName: "",
+    name: "",
     bankCode: "",
-    managerPhone: "",
-    bankImage: null,
+    bankPhoneNum: "",
   })
+
+  // 비밀번호 확인용 state (API에 보내지 않음)
+  const [passwordConfirm, setPasswordConfirm] = useState("")
+  const [bankImage, setBankImage] = useState<File | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const [errors, setErrors] = useState({
     passwordMatch: false,
@@ -39,22 +46,24 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
   // 입력 필드 값 변경 처리
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setFormData({
-      ...formData,
-      [name]: value,
-    })
+    
+    if (name === "passwordConfirm") {
+      setPasswordConfirm(value)
+      setErrors({
+        ...errors,
+        passwordMatch: value !== formData.password,
+      })
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value,
+      })
 
-    // 비밀번호 일치 여부 확인
-    if (name === "password" || name === "passwordConfirm") {
+      // 비밀번호 필드 변경 시 확인
       if (name === "password") {
         setErrors({
           ...errors,
-          passwordMatch: value !== formData.passwordConfirm && formData.passwordConfirm !== "",
-        })
-      } else {
-        setErrors({
-          ...errors,
-          passwordMatch: value !== formData.password,
+          passwordMatch: value !== passwordConfirm && passwordConfirm !== "",
         })
       }
     }
@@ -63,29 +72,84 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
   // 파일 업로드 처리
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFormData({
-        ...formData,
-        bankImage: e.target.files[0],
-      })
+      setBankImage(e.target.files[0])
     }
   }
 
   // 폼 제출 처리
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit(formData)
-    // 폼 초기화
-    setFormData({
-      id: "",
-      password: "",
-      passwordConfirm: "",
-      bankName: "",
-      bankCode: "",
-      managerPhone: "",
-      bankImage: null,
-    })
-    // 모달 닫기
-    onClose()
+    
+    if (errors.passwordMatch) {
+      setError("비밀번호가 일치하지 않습니다.")
+      return
+    }
+    
+    if (!bankImage) {
+      setError("은행 CI 이미지를 업로드해주세요.")
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      // FormData 생성
+      const formDataToSend = new FormData()
+      
+      // BankData를 JSON 문자열로 변환하여 첨부
+      const bankDataBlob = new Blob([JSON.stringify(formData)], {
+        type: 'application/json'
+      })
+      formDataToSend.append('BankData', bankDataBlob)
+      
+      // 이미지 파일 첨부
+      formDataToSend.append('BankCiImage', bankImage)
+      const token = localStorage.getItem('accessToken');
+    
+      if (!token) {
+        throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
+      }
+      // API 요청
+      const response = await fetch(`${API_BASE_URL}/api/admin/bank/signup`, {
+        method: 'POST',
+        body: formDataToSend,
+        
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`)
+      }
+
+      const result = await response.json()
+      
+      // 콜백 함수가 제공된 경우 호출
+      if (onSubmit) {
+        onSubmit(result)
+      }
+
+      // 폼 초기화
+      setFormData({
+        email: "",
+        password: "",
+        name: "",
+        bankCode: "",
+        bankPhoneNum: "",
+      })
+      setPasswordConfirm("")
+      setBankImage(null)
+      
+      // 모달 닫기
+      onClose()
+    } catch (err: any) {
+      console.error("은행 계정 생성 실패:", err)
+      setError(err.message || "은행 계정 생성 중 오류가 발생했습니다.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   // 모달이 닫혀있으면 아무것도 렌더링하지 않음
@@ -120,6 +184,15 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
             scrollbarColor: '#CBD5E0 #F7FAFC',
           }}
         >
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-md flex items-start">
+              <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>{error}</span>
+            </div>
+          )}
+        
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* 계정 정보 섹션 */}
             <div className="bg-gray-50 p-4 border border-gray-100 rounded-md">
@@ -130,8 +203,8 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
                   <label className="block text-sm font-medium mb-2 text-gray-700">아이디(이메일 형식)</label>
                   <input
                     type="email"
-                    name="id"
-                    value={formData.id}
+                    name="email"
+                    value={formData.email}
                     onChange={handleChange}
                     placeholder="아이디를 입력해주세요"
                     className="w-full p-3 border border-gray-200 rounded-md focus:ring-2 focus:ring-pink-200 focus:outline-none transition-all"
@@ -157,7 +230,7 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
                   <input
                     type="password"
                     name="passwordConfirm"
-                    value={formData.passwordConfirm}
+                    value={passwordConfirm}
                     onChange={handleChange}
                     placeholder="비밀번호를 다시 한번 입력해주세요"
                     className="w-full p-3 border border-gray-200 rounded-md focus:ring-2 focus:ring-pink-200 focus:outline-none transition-all"
@@ -184,8 +257,8 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
                   <label className="block text-sm font-medium mb-2 text-gray-700">은행명</label>
                   <input
                     type="text"
-                    name="bankName"
-                    value={formData.bankName}
+                    name="name"
+                    value={formData.name}
                     onChange={handleChange}
                     placeholder="은행명을 입력해주세요"
                     className="w-full p-3 border border-gray-200 rounded-md focus:ring-2 focus:ring-pink-200 focus:outline-none transition-all"
@@ -210,10 +283,10 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
                   <label className="block text-sm font-medium mb-2 text-gray-700">담당자 휴대폰 번호</label>
                   <input
                     type="tel"
-                    name="managerPhone"
-                    value={formData.managerPhone}
+                    name="bankPhoneNum"
+                    value={formData.bankPhoneNum}
                     onChange={handleChange}
-                    placeholder="예)010-0000-0000 형식으로 입력해주세요"
+                    placeholder="예)0212345678 형식으로 입력해주세요 (- 없이)"
                     className="w-full p-3 border border-gray-200 rounded-md focus:ring-2 focus:ring-pink-200 focus:outline-none transition-all"
                     required
                   />
@@ -238,15 +311,16 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
                     onChange={handleFileChange}
                     className="hidden"
                     accept="image/*"
+                    required
                   />
                 </label>
                 
-                {formData.bankImage && (
+                {bankImage && (
                   <div className="mt-3 flex items-center text-sm text-gray-600 bg-green-50 p-2 rounded-md">
                     <svg className="w-4 h-4 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span>선택된 파일: {formData.bankImage.name}</span>
+                    <span>선택된 파일: {bankImage.name}</span>
                   </div>
                 )}
               </div>
@@ -258,14 +332,26 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
                 type="button"
                 onClick={onClose}
                 className="w-1/3 p-3 font-medium transition-all flex items-center justify-center border border-gray-200 rounded-md text-gray-600 hover:bg-gray-50"
+                disabled={loading}
               >
                 취소
               </button>
               <button
                 type="submit"
                 className="w-2/3 p-3 font-medium transition-all flex items-center justify-center gap-2 bg-pink-500 text-white hover:bg-pink-600 shadow-sm hover:shadow rounded-md"
+                disabled={loading}
               >
-                <span className="text-md">은행 추가하기</span>
+                {loading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    처리 중...
+                  </>
+                ) : (
+                  <span className="text-md">은행 추가하기</span>
+                )}
               </button>
             </div>
           </form>
@@ -274,33 +360,5 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
     </div>
   )
 }
-
-// 아래 CSS를 전역 스타일시트에 추가
-// 또는 페이지에 <style jsx global>{`...`}</style> 추가
-const globalStyles = `
-  /* 커스텀 스크롤바 스타일 */
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: #F7FAFC;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: #CBD5E0;
-    border-radius: 20px;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background-color: #A0AEC0;
-  }
-  
-  /* Firefox의 경우 */
-  .custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: #CBD5E0 #F7FAFC;
-  }
-`;
 
 export default AddBankModal

@@ -230,7 +230,7 @@ export default function BankAccountRegistrationPage() {
 
   // 추가 액션 버튼
   const extraActionButton = (
-    <button 
+    <button
       onClick={handleBulkRegistration}
       className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all bg-white text-pink-500 border border-pink-500 hover:bg-pink-50"
     >
@@ -242,10 +242,10 @@ export default function BankAccountRegistrationPage() {
   // 확인 모달 메시지 및 제목 설정
   const getConfirmationModalProps = () => {
     if (!selectedItem) return { title: "", actionText: "", targetName: "" };
-    
+
     let title = "확인";
     let actionText = "";
-    
+
     switch (selectedItem.approveButtonText) {
       case "해제 완료":
         title = "계좌 해제 확인";
@@ -260,10 +260,10 @@ export default function BankAccountRegistrationPage() {
         actionText = "등록";
         break;
     }
-    
-    return { 
-      title, 
-      actionText, 
+
+    return {
+      title,
+      actionText,
       targetName: selectedItem.depositorName
     };
   };

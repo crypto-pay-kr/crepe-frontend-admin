@@ -1,89 +1,142 @@
-import { createContext, useContext, useState, ReactNode } from "react";
-// import { loginApi } from "../api/authApi"; // 실제 API 사용 시 주석 해제
+"use client";
 
-interface AuthContextValue {
-    isAuthenticated: boolean;
-    login: (loginId: string, password: string) => Promise<void>;
-    logout: () => void;
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import axios from 'axios';
+
+// 환경 변수에서 API URL 가져오기
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
+interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  role: string;
 }
 
-// 개발용 더미 데이터
-const DUMMY_AUTH_DATA = {
-    accessToken: "dummy-access-token-for-development",
-    refreshToken: "dummy-refresh-token-for-development",
-    role: "ADMIN"
-};
+interface AuthContextValue {
+  isAuthenticated: boolean;
+  login: (loginId: string, password: string, captchaKey?: string, captchaValue?: string) => Promise<void>;
+  logout: () => void;
+  checkAuth: () => Promise<boolean>;
+}
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true); // 개발용으로 항상 인증됨
-    
-    const login = async (loginId: string, password: string) => {
-        // 개발 단계: 항상 성공하도록 설정
-        console.log("개발 모드: 로그인 항상 성공", { loginId, password });
-        
-        // 더미 데이터 사용
-        const { accessToken, refreshToken } = DUMMY_AUTH_DATA;
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+
+  // 컴포넌트 마운트 시 로그인 상태 확인
+  useEffect(() => {
+    const checkLoginStatus = async () => {
+      // localStorage에서 토큰과 rememberMe 옵션 가져오기
+      const accessToken = localStorage.getItem('accessToken');
+      const rememberMe = localStorage.getItem('rememberMe') === 'true';
+
+      // 토큰이 있고 rememberMe가 true이면 로그인 상태 유지
+      if (accessToken && rememberMe) {
+        setIsAuthenticated(true);
+
+        // 토큰 유효성 검증 (선택적)
+        try {
+          await checkAuth();
+        } catch (error) {
+          // 토큰이 만료되었거나 유효하지 않은 경우 로그아웃
+          logout();
+        }
+      } else if (accessToken && !rememberMe) {
+        // rememberMe가 false이지만 세션이 계속되는 동안에는 로그인 유지
+        setIsAuthenticated(true);
+      } else {
+        // 토큰이 없으면 로그아웃 상태
+        setIsAuthenticated(false);
+      }
+    };
+
+    checkLoginStatus();
+  }, []);
+
+  // 로그인 함수
+  const login = async (loginId: string, password: string, captchaKey?: string, captchaValue?: string) => {
+    try {
+      // 관리자 로그인 API 엔드포인트로 변경
+      const response = await axios.post<LoginResponse>(`${API_BASE_URL}/api/admin/login`, {
+        email: loginId, // API에서는 'email'로 요청하도록 되어 있음
+        password,
+        captchaKey,
+        captchaValue
+      });
+
+      const { accessToken, refreshToken, role } = response.data;
+
+      if (role === 'ADMIN') {
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('refreshToken', refreshToken);
         setIsAuthenticated(true);
-        
-        // 실제 구현 (개발 완료 후 주석 해제)
-        /* 
-        try {
-            const { accessToken, refreshToken, role } = await loginApi({ loginId, password });
-            if (role === 'ADMIN') {
-                localStorage.setItem('accessToken', accessToken);
-                localStorage.setItem('refreshToken', refreshToken);
-                setIsAuthenticated(true);
-            } else {
-                throw new Error('관리자 권한이 없습니다.');
-            }
-        } catch (error) {
-            console.error("로그인 에러:", error);
-            throw new Error('로그인에 실패했습니다.');
-        }
-        */
-    };
-    
-    const logout = () => {
-        console.log("개발 모드: 로그아웃");
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        // 개발 단계에서는 로그아웃 후에도 인증 상태 유지 (필요시 아래 주석 해제)
-        // setIsAuthenticated(false);
-    };
-    
-    return (
-        <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
-            {children}
-        </AuthContext.Provider>
-    );
+        return;
+      } else {
+        throw new Error('관리자 권한이 없습니다.');
+      }
+    } catch (error) {
+      console.error("로그인 에러:", error);
+
+      // 서버 응답에서 오류 메시지 추출
+      if (axios.isAxiosError(error) && error.response) {
+        const errorMessage = error.response.data.message || '로그인에 실패했습니다.';
+        throw new Error(errorMessage);
+      } else {
+        throw new Error('로그인에 실패했습니다.');
+      }
+    }
+  };
+
+  // 로그아웃 함수
+  const logout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('rememberMe'); // rememberMe 옵션도 제거
+    }
+    setIsAuthenticated(false);
+  };
+
+  // 토큰 유효성 검증 함수
+  const checkAuth = async (): Promise<boolean> => {
+    try {
+      const accessToken = localStorage.getItem('accessToken');
+
+      if (!accessToken) {
+        setIsAuthenticated(false);
+        return false;
+      }
+
+      // 서버에 토큰 유효성 검증 요청
+      // 실제 API가 있다면 아래와 같이 구현
+      // const response = await axios.get(${API_BASE_URL}/api/admin/verify-token, {
+      //   headers: {
+      //     Authorization: Bearer ${accessToken}
+      //   }
+      // });
+
+      // 현재는 토큰이 있으면 로그인 상태로 간주
+      setIsAuthenticated(true);
+      return true;
+    } catch (error) {
+      console.error("인증 확인 에러:", error);
+      setIsAuthenticated(false);
+      return false;
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ isAuthenticated, login, logout, checkAuth }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuthContext = () => {
-    // 개발 단계: 항상 컨텍스트가 존재하도록 수정
-    const context = useContext(AuthContext);
-    
-    // 컨텍스트가 없어도 개발용 기본값 반환
-    if (!context) {
-        console.warn('AuthContext가 제공되지 않았지만, 개발 모드에서는 기본값 사용');
-        return {
-            isAuthenticated: true,
-            login: async () => console.log('개발 모드 기본 로그인'),
-            logout: () => console.log('개발 모드 기본 로그아웃')
-        };
-    }
-    
-    return context;
-    
-    // 실제 구현 (개발 완료 후 이렇게 수정)
-    /*
-    const context = useContext(AuthContext);
-    if (!context) {
-        throw new Error('AuthContext가 제공되지 않았습니다.');
-    }
-    return context;
-    */
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('AuthContext가 제공되지 않았습니다.');
+  }
+  return context;
 };
