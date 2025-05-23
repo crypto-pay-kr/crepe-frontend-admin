@@ -17,7 +17,7 @@ interface PendingAddressApiResponse {
     number: number; // 현재 페이지 번호
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 //출금 주소 등록 요청 조회
 export const fetchPendingWithdrawAddresses = async (statuses: string[], page = 0, size = 3, isBankAccount:boolean): Promise<PendingAddressApiResponse> => {
