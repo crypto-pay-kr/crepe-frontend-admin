@@ -14,6 +14,7 @@ interface BankData {
   name: string;           // bankName -> name으로 변경
   bankCode: string;
   bankPhoneNum: string;   // managerPhone -> bankPhoneNum으로 변경
+  managerName: string;    // managerName 추가
 }
 
 // 모달 컴포넌트 props 인터페이스
@@ -31,6 +32,7 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
     name: "",
     bankCode: "",
     bankPhoneNum: "",
+    managerName: "",
   })
 
   // 비밀번호 확인용 state (API에 보내지 않음)
@@ -299,7 +301,18 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
                     required
                   />
                 </div>
-
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-700">담당자 이름</label>
+                  <input
+                    type="text"
+                    name="managerName"
+                    value={formData.managerName}
+                    onChange={handleChange}
+                    placeholder="예)김크레페"
+                    className="w-full p-3 border border-gray-200 rounded-md focus:ring-2 focus:ring-pink-200 focus:outline-none transition-all"
+                    required
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium mb-2 text-gray-700">담당자 휴대폰 번호</label>
                   <input
