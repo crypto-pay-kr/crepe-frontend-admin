@@ -42,7 +42,7 @@ export default function BankManagement({ onShowSuspendedList }: BankManagementPr
     
     try {
       // 로컬 스토리지에서 토큰 가져오기
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       
       if (!token) {
         throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
@@ -95,7 +95,7 @@ export default function BankManagement({ onShowSuspendedList }: BankManagementPr
     if (selectedBank) {
       try {
         // 로컬 스토리지에서 토큰 가져오기
-        const token = localStorage.getItem('accessToken');
+        const token = sessionStorage.getItem('accessToken');
         
         if (!token) {
           throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');

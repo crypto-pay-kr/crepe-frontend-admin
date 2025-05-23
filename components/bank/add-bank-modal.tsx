@@ -36,6 +36,7 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
   // 비밀번호 확인용 state (API에 보내지 않음)
   const [passwordConfirm, setPasswordConfirm] = useState("")
   const [bankImage, setBankImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null) // 이미지 미리보기 추가
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -72,7 +73,26 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
   // 파일 업로드 처리
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setBankImage(e.target.files[0])
+      const file = e.target.files[0]
+      setBankImage(file)
+      
+      // 이미지 미리보기 생성
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        setImagePreview(event.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // 이미지 제거 처리
+  const handleRemoveImage = () => {
+    setBankImage(null)
+    setImagePreview(null)
+    // 파일 input 초기화
+    const fileInput = document.querySelector('input[name="bankImage"]') as HTMLInputElement
+    if (fileInput) {
+      fileInput.value = ''
     }
   }
 
@@ -124,7 +144,7 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
         throw new Error(`Error: ${response.status}`)
       }
 
-      const result = await response.json()
+      const result = await response.text()
       
       // 콜백 함수가 제공된 경우 호출
       if (onSubmit) {
@@ -141,6 +161,7 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
       })
       setPasswordConfirm("")
       setBankImage(null)
+      setImagePreview(null) // 이미지 미리보기도 초기화
       
       // 모달 닫기
       onClose()
@@ -299,28 +320,71 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
               <h3 className="text-md font-semibold mb-4 text-gray-800">은행 CI 이미지</h3>
               
               <div>
-                <label className="flex flex-col items-center justify-center gap-2 cursor-pointer py-6 text-gray-600 hover:text-pink-500 transition-colors border-2 border-dashed border-gray-200 bg-white rounded-md">
-                  <div className="w-12 h-12 bg-pink-50 rounded-full flex items-center justify-center">
-                    <Upload size={20} className="text-pink-500" />
-                  </div>
-                  <span className="font-medium">첨부파일 업로드</span>
-                  <p className="text-xs text-gray-500">PNG, JPG 파일 (최대 5MB)</p>
-                  <input
-                    type="file"
-                    name="bankImage"
-                    onChange={handleFileChange}
-                    className="hidden"
-                    accept="image/*"
-                    required
-                  />
-                </label>
-                
-                {bankImage && (
-                  <div className="mt-3 flex items-center text-sm text-gray-600 bg-green-50 p-2 rounded-md">
-                    <svg className="w-4 h-4 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span>선택된 파일: {bankImage.name}</span>
+                {/* 이미지가 선택되지 않았을 때 업로드 영역 */}
+                {!imagePreview && (
+                  <label className="flex flex-col items-center justify-center gap-2 cursor-pointer py-6 text-gray-600 hover:text-pink-500 transition-colors border-2 border-dashed border-gray-200 bg-white rounded-md">
+                    <div className="w-12 h-12 bg-pink-50 rounded-full flex items-center justify-center">
+                      <Upload size={20} className="text-pink-500" />
+                    </div>
+                    <span className="font-medium">첨부파일 업로드</span>
+                    <p className="text-xs text-gray-500">PNG, JPG 파일 (최대 5MB)</p>
+                    <input
+                      type="file"
+                      name="bankImage"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      accept="image/*"
+                      required
+                    />
+                  </label>
+                )}
+
+                {/* 이미지 미리보기 */}
+                {imagePreview && (
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <img
+                        src={imagePreview}
+                        alt="은행 CI 미리보기"
+                        className="w-full h-48 object-contain bg-white border border-gray-200 rounded-md"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                        title="이미지 제거"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                    
+                    <div className="flex items-center justify-between text-sm text-gray-600 bg-green-50 p-3 rounded-md">
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>{bankImage?.name}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const fileInput = document.querySelector('input[name="bankImage"]') as HTMLInputElement
+                          fileInput?.click()
+                        }}
+                        className="text-pink-500 hover:text-pink-600 font-medium"
+                      >
+                        변경
+                      </button>
+                    </div>
+
+                    {/* 숨겨진 파일 입력 (이미지가 있을 때도 변경 가능하도록) */}
+                    <input
+                      type="file"
+                      name="bankImage"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      accept="image/*"
+                    />
                   </div>
                 )}
               </div>

@@ -31,8 +31,7 @@ export default function SuspendedBanksList({ onBack }: SuspendedBanksListProps) 
     setError(null);
     
     try {
-      // 로컬 스토리지에서 토큰 가져오기
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       
       if (!token) {
         throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
@@ -79,8 +78,7 @@ export default function SuspendedBanksList({ onBack }: SuspendedBanksListProps) 
   // 은행 이용정지 해제 처리
   const handleRemoveSuspension = async (id: number) => {
     try {
-      // 로컬 스토리지에서 토큰 가져오기
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       
       if (!token) {
         throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');

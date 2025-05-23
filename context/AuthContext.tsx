@@ -27,12 +27,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // 컴포넌트 마운트 시 로그인 상태 확인
   useEffect(() => {
     const checkLoginStatus = async () => {
-      // localStorage에서 토큰과 rememberMe 옵션 가져오기
-      const accessToken = localStorage.getItem('accessToken');
-      const rememberMe = localStorage.getItem('rememberMe') === 'true';
+      // sessionStorage에서 토큰 가져오기
+      const accessToken = sessionStorage.getItem('accessToken');
 
-      // 토큰이 있고 rememberMe가 true이면 로그인 상태 유지
-      if (accessToken && rememberMe) {
+      if (accessToken) {
+        // 토큰이 있으면 로그인 상태로 설정
         setIsAuthenticated(true);
 
         // 토큰 유효성 검증 (선택적)
@@ -42,9 +41,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // 토큰이 만료되었거나 유효하지 않은 경우 로그아웃
           logout();
         }
-      } else if (accessToken && !rememberMe) {
-        // rememberMe가 false이지만 세션이 계속되는 동안에는 로그인 유지
-        setIsAuthenticated(true);
       } else {
         // 토큰이 없으면 로그아웃 상태
         setIsAuthenticated(false);
@@ -68,8 +64,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { accessToken, refreshToken, role } = response.data;
 
       if (role === 'ADMIN') {
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('refreshToken', refreshToken);
+        // sessionStorage에 토큰 저장 (보안성 향상)
+        sessionStorage.setItem('accessToken', accessToken);
+        sessionStorage.setItem('refreshToken', refreshToken);
         setIsAuthenticated(true);
         return;
       } else {
@@ -91,9 +88,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // 로그아웃 함수
   const logout = () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('rememberMe'); // rememberMe 옵션도 제거
+      // sessionStorage에서 토큰 제거
+      sessionStorage.removeItem('accessToken');
+      sessionStorage.removeItem('refreshToken');
     }
     setIsAuthenticated(false);
   };
@@ -101,20 +98,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // 토큰 유효성 검증 함수
   const checkAuth = async (): Promise<boolean> => {
     try {
-      const accessToken = localStorage.getItem('accessToken');
+      const accessToken = sessionStorage.getItem('accessToken');
 
       if (!accessToken) {
         setIsAuthenticated(false);
         return false;
       }
-
-      // 서버에 토큰 유효성 검증 요청
-      // 실제 API가 있다면 아래와 같이 구현
-      // const response = await axios.get(${API_BASE_URL}/api/admin/verify-token, {
-      //   headers: {
-      //     Authorization: Bearer ${accessToken}
-      //   }
-      // });
 
       // 현재는 토큰이 있으면 로그인 상태로 간주
       setIsAuthenticated(true);
