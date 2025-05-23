@@ -8,7 +8,6 @@ export interface GetActorInfoResponse {
     actorStatus: string;
 }
 
-const token = sessionStorage.getItem('accessToken');
 
 export const fetchActorsByRole = async (
     role: string,
@@ -19,6 +18,7 @@ export const fetchActorsByRole = async (
     totalPages: number;
     number: number;
 }> => {
+    const token = sessionStorage.getItem('accessToken');
     const res = await fetch(
         `${API_BASE_URL}/api/admin/actors?role=${role}&page=${page}&size=${size}`,
         {
@@ -43,6 +43,7 @@ export const fetchUserTransactionHistory = async (
     page: number,
     size: number
 ) => {
+    const token = sessionStorage.getItem('accessToken');
     const res = await fetch(
         `${API_BASE_URL}/api/admin/actors/${actorId}/history?page=${page}&size=${size}`,
         {

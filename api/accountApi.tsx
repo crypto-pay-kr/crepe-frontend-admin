@@ -21,9 +21,10 @@ interface PendingAddressApiResponse {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-const token = sessionStorage.getItem('accessToken');
+
 //출금 주소 등록 요청 조회
 export const fetchPendingWithdrawAddresses = async (statuses: string[], page = 0, size = 3, isBankAccount:boolean): Promise<PendingAddressApiResponse> => {
+    const token = sessionStorage.getItem('accessToken');
     try {
         const queryString = statuses.map(status => `statuses=${status}`).join('&');
 
@@ -55,6 +56,7 @@ export const fetchPendingWithdrawAddresses = async (statuses: string[], page = 0
 
 //출금 주소 등록 허용
 export const approveWithdrawAddress = async (accountId: number) => {
+    const token = sessionStorage.getItem('accessToken');
     try {
         const response = await fetch(`${API_BASE_URL}/api/admin/address/approve?accountId=${accountId}`, {
             method: 'PATCH',
@@ -78,6 +80,7 @@ export const approveWithdrawAddress = async (accountId: number) => {
 
 // 출금 주소 등록 거절
 export const rejectAddressRequest = async (accountId: number) => {
+    const token = sessionStorage.getItem('accessToken');
     try {
         const response = await fetch(`${API_BASE_URL}/api/admin/address/reject/${accountId}`, {
             method: 'PATCH',
@@ -101,6 +104,7 @@ export const rejectAddressRequest = async (accountId: number) => {
 
 //출금주소 해지 승인
 export const approveUnregisterRequest = async (accountId: number) => {
+    const token = sessionStorage.getItem('accessToken');
     try {
         const response = await fetch(`${API_BASE_URL}/api/admin/address/unregister/${accountId}`, {
             method: 'PATCH',
@@ -130,6 +134,7 @@ export const fetchAccountInfo = async (
     totalPages: number;
     number: number;
 }> => {
+    const token = sessionStorage.getItem('accessToken');
     const res = await fetch(
         `${API_BASE_URL}/api/admin/account?id=${id}&page=${page}&size=${size}`,
         {
