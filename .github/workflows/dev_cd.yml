@@ -1,0 +1,63 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+# This workflow will build a Java project with Gradle and cache/restore any dependencies to improve the workflow execution time
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-java-with-gradle
+
+name: CD
+
+on:
+  push:
+    branches: [ "dev" ]
+    
+permissions:
+      contents: read
+      
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use node
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Docker Login
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build Docker Image
+      run: |
+        docker build \
+          -t ${{ secrets.DOCKER_USERNAME}}/${{ secrets.DOCKER_REPO }}:latest \
+          -t ${{ secrets.DOCKER_USERNAME}}/${{ secrets.DOCKER_REPO }}:${GITHUB_SHA::7} \
+          .
+
+    - name: Docker Image Push
+      run: |
+        docker push ${{ secrets.DOCKER_USERNAME}}/${{ secrets.DOCKER_REPO }}:latest
+        docker push ${{ secrets.DOCKER_USERNAME}}/${{ secrets.DOCKER_REPO }}:${GITHUB_SHA::7}
+
+
+    - name: Deploy to Remote
+      uses: appleboy/ssh-action@master
+      env:
+        REPO: ${{ secrets.DOCKER_REPO }}
+      with:
+        host: ${{ secrets.SERVER_DEV_HOST }}
+        username: ubuntu
+        key: ${{ secrets.SERVER_DEV_PEM_KEY }}
+        proxy_host: ${{ secrets.BASTION_HOST }}
+        proxy_username: ubuntu
+        proxy_key: ${{ secrets.BASTION_PEM_KEY }}
+        envs: GITHUB_SHA,REPO
+        script: |
+          ./deploy_front_admin_dev.sh ${{ secrets.DOCKER_USERNAME }} $REPO ${GITHUB_SHA::7}
