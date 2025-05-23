@@ -11,7 +11,7 @@ import {
   approveWithdrawAddress,
   fetchPendingWithdrawAddresses,
   rejectAddressRequest
-} from "@/api/adminAccountApi";
+} from "@/api/accountApi";
 
 // 은행 계좌 등록에 필요한 추가 필드 정의
 interface BankAccountRegistration {

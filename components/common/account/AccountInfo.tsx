@@ -4,7 +4,7 @@ import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { DisconnectConfirmModal } from "../disconnect-modal"
 import {useEffect, useState} from "react"
-import {fetchAccountInfo} from "@/api/adminAccountApi";
+import {fetchAccountInfo} from "@/api/accountApi";
 import { useParams } from 'next/navigation'
 // 계좌 정보 타입 정의
 interface AccountBalance {

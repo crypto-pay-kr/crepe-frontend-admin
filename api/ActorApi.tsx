@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_BASIC_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export interface GetActorInfoResponse {
     actorId: number;
@@ -7,6 +7,8 @@ export interface GetActorInfoResponse {
     actorPhoneNum: string;
     actorStatus: string;
 }
+
+const token = sessionStorage.getItem('accessToken');
 
 export const fetchActorsByRole = async (
     role: string,
@@ -18,12 +20,12 @@ export const fetchActorsByRole = async (
     number: number;
 }> => {
     const res = await fetch(
-        `${BASE_URL}/api/admin/actors?role=${role}&page=${page}&size=${size}`,
+        `${API_BASE_URL}/api/admin/actors?role=${role}&page=${page}&size=${size}`,
         {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer eyJhbGciOiJIUzUxMiJ9.eyJyb2xlIjoiQURNSU4iLCJlbWFpbCI6ImNyZXBlYmFua0BjcmVwZS5jb20iLCJzdWIiOiJjcmVwZWJhbmtAY3JlcGUuY29tIiwiaWF0IjoxNzQ3OTYzNjAwLCJleHAiOjE3NDc5NjcyMDB9.ktuJzXooHhpRiRhuJFMHpUHAL5Ytuk93zwLswMykXO-Lj5ohZ0Hwo9-58m9RuFDwZ2MmRgri5pe9VF37Br3nPw` // 토큰 필요 시
+                Authorization: `Bearer ${token}` // 토큰 필요 시
             }
         }
     );
@@ -42,12 +44,12 @@ export const fetchUserTransactionHistory = async (
     size: number
 ) => {
     const res = await fetch(
-        `${BASE_URL}/admin/actors/${actorId}/history?page=${page}&size=${size}`,
+        `${API_BASE_URL}/api/admin/actors/${actorId}/history?page=${page}&size=${size}`,
         {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                 Authorization: `Bearer eyJhbGciOiJIUzUxMiJ9.eyJyb2xlIjoiQURNSU4iLCJlbWFpbCI6ImNyZXBlYmFua0BjcmVwZS5jb20iLCJzdWIiOiJjcmVwZWJhbmtAY3JlcGUuY29tIiwiaWF0IjoxNzQ3OTYzNjAwLCJleHAiOjE3NDc5NjcyMDB9.ktuJzXooHhpRiRhuJFMHpUHAL5Ytuk93zwLswMykXO-Lj5ohZ0Hwo9-58m9RuFDwZ2MmRgri5pe9VF37Br3nPw`
+                 Authorization: `Bearer ${token}`
             },
         }
     );

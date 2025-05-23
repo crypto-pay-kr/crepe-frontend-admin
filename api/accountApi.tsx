@@ -21,6 +21,7 @@ interface PendingAddressApiResponse {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
+const token = sessionStorage.getItem('accessToken');
 //출금 주소 등록 요청 조회
 export const fetchPendingWithdrawAddresses = async (statuses: string[], page = 0, size = 3, isBankAccount:boolean): Promise<PendingAddressApiResponse> => {
     try {
@@ -30,7 +31,7 @@ export const fetchPendingWithdrawAddresses = async (statuses: string[], page = 0
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer eyJhbGciOiJIUzUxMiJ9.eyJyb2xlIjoiQURNSU4iLCJlbWFpbCI6ImNyZXBlYmFua0BjcmVwZS5jb20iLCJzdWIiOiJjcmVwZWJhbmtAY3JlcGUuY29tIiwiaWF0IjoxNzQ3Nzk3MDYxLCJleHAiOjE3NDc4MDA2NjF9._1_3JuZzSjasNAB19f8o6FppbesEccF091D-dSj87lVbr1gJIIkAuNmuhC8g6QtasoG6SisL7wtogAQwawZ8zQ`
+                Authorization: `Bearer ${token}`
             }
         });
 
@@ -59,7 +60,7 @@ export const approveWithdrawAddress = async (accountId: number) => {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer eyJhbGciOiJIUzUxMiJ9.eyJyb2xlIjoiQURNSU4iLCJlbWFpbCI6ImNyZXBlYmFua0BjcmVwZS5jb20iLCJzdWIiOiJjcmVwZWJhbmtAY3JlcGUuY29tIiwiaWF0IjoxNzQ3Nzk3MDYxLCJleHAiOjE3NDc4MDA2NjF9._1_3JuZzSjasNAB19f8o6FppbesEccF091D-dSj87lVbr1gJIIkAuNmuhC8g6QtasoG6SisL7wtogAQwawZ8zQ`, // 실제 토큰 삽입
+                Authorization: `Bearer ${token}`, // 실제 토큰 삽입
             },
         });
 
@@ -82,7 +83,7 @@ export const rejectAddressRequest = async (accountId: number) => {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer eyJhbGciOiJIUzUxMiJ9.eyJyb2xlIjoiQURNSU4iLCJlbWFpbCI6ImNyZXBlYmFua0BjcmVwZS5jb20iLCJzdWIiOiJjcmVwZWJhbmtAY3JlcGUuY29tIiwiaWF0IjoxNzQ3Nzk3MDYxLCJleHAiOjE3NDc4MDA2NjF9._1_3JuZzSjasNAB19f8o6FppbesEccF091D-dSj87lVbr1gJIIkAuNmuhC8g6QtasoG6SisL7wtogAQwawZ8zQ`,
+                Authorization: `Bearer ${token}`,
             },
         });
 
@@ -104,7 +105,7 @@ export const approveUnregisterRequest = async (accountId: number) => {
         const response = await fetch(`${API_BASE_URL}/api/admin/address/unregister/${accountId}`, {
             method: 'PATCH',
             headers: {
-                Authorization: `Bearer eyJhbGciOiJIUzUxMiJ9.eyJyb2xlIjoiQURNSU4iLCJlbWFpbCI6ImNyZXBlYmFua0BjcmVwZS5jb20iLCJzdWIiOiJjcmVwZWJhbmtAY3JlcGUuY29tIiwiaWF0IjoxNzQ3Nzk3MDYxLCJleHAiOjE3NDc4MDA2NjF9._1_3JuZzSjasNAB19f8o6FppbesEccF091D-dSj87lVbr1gJIIkAuNmuhC8g6QtasoG6SisL7wtogAQwawZ8zQ`,
+                Authorization: `Bearer ${token}`,
             },
         });
 
@@ -133,7 +134,7 @@ export const fetchAccountInfo = async (
         `${API_BASE_URL}/api/admin/account?id=${id}&page=${page}&size=${size}`,
         {
             headers: {
-                Authorization: `Bearer eyJhbGciOiJIUzUxMiJ9.eyJyb2xlIjoiQURNSU4iLCJlbWFpbCI6ImNyZXBlYmFua0BjcmVwZS5jb20iLCJzdWIiOiJjcmVwZWJhbmtAY3JlcGUuY29tIiwiaWF0IjoxNzQ3OTYxODA0LCJleHAiOjE3NDc5NjU0MDR9.OOyUWNHVONLb8zAOmWIkh0Rv7aejg0xNetOtdCBBoRxOpzy4arzalt_oaQ9IU7fFQSdYBgDswROTrv1PYTPq8Q`, // 필요시 설정
+                Authorization: `Bearer ${token}`, // 필요시 설정
                 "Content-Type": "application/json",
             },
         }

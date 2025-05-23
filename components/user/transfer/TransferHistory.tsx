@@ -18,7 +18,8 @@ interface GetTransactionHistoryResponse {
   transactionId: string;
   transactionStatus: string;
   amount: string;
-  transferredAt: string;
+  transferAt: string;
+  transactionType: string;
 }
 
 export default function TransferHistory({ 
@@ -29,17 +30,18 @@ export default function TransferHistory({
   backPath = type === "user" ? "/management/user" : "/management/store",
 }: TransferHistoryProps) {
 
-  const { actorId } = useParams();
+  const { id } = useParams();
   const [transactions, setTransactions] = useState<GetTransactionHistoryResponse[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
   useEffect(() => {
+    console.log("actorId 확인:", id);
     const load = async () => {
-      if (!actorId) return;
+      if (!id) return;
 
       try {
-        const data = await fetchUserTransactionHistory(Number(actorId),0,5);
+        const data = await fetchUserTransactionHistory(Number(id),0,5);
 
         setTransactions(data.content);
         setTotalPages(data.totalPages);
@@ -49,7 +51,7 @@ export default function TransferHistory({
     };
 
     load();
-  }, [actorId, page]);
+  }, [id, page]);
 
 
 
@@ -79,28 +81,33 @@ export default function TransferHistory({
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="py-3 px-4 text-left font-medium text-gray-600">코인 종류</th>
-                  <th className="py-3 px-4 text-left font-medium text-gray-600">거래 날짜</th>
-                  <th className="py-3 px-4 text-left font-medium text-gray-600">거래 ID</th>
-                  <th className="py-3 px-4 text-left font-medium text-gray-600">상태</th>
-                  <th className="py-3 px-4 text-left font-medium text-gray-600">거래 금액</th>
-                </tr>
+              <tr className="border-b border-gray-200">
+                <th className="py-3 px-4 text-left font-medium text-gray-600">코인 종류</th>
+                <th className="py-3 px-4 text-left font-medium text-gray-600">거래 날짜</th>
+                <th className="py-3 px-4 text-left font-medium text-gray-600">거래 ID</th>
+                <th className="py-3 px-4 text-left font-medium text-gray-600">상태</th>
+                <th className="py-3 px-4 text-left font-medium text-gray-600">타입</th>
+                <th className="py-3 px-4 text-left font-medium text-gray-600">거래 금액</th>
+              </tr>
               </thead>
               <tbody>
-                {transactions.map((transfer, index) => (
+              {transactions.map((transfer, index) => (
                   <tr key={index} className="border-b border-gray-100">
                     <td className="py-4 px-4 text-gray-800">{transfer.currency}</td>
-                    <td className="py-4 px-4 text-gray-800">{transfer.transferredAt}</td>
+                    <td className="py-4 px-4 text-gray-800">{transfer.transferAt.split("T")[0]}</td>
                     <td className="py-4 px-4 text-gray-800 max-w-xs truncate">
                       <span title={transfer.transactionId}>{transfer.transactionId}</span>
                     </td>
                     <td className="py-4 px-4">
-                      <div className={`${transfer.transactionStatus.includes("f") ? "text-red-500" : "text-green-500"}`}>
+                      {/*<div className={`${transfer.transactionStatus ? "text-red-500" : "text-green-500"}`}>*/}
+                      <div>
                         {transfer.transactionStatus}
                       </div>
                     </td>
-                    <td className="py-4 px-4 font-medium">{transfer.amount}</td>
+                    <td className="py-4 px-4">{transfer.transactionType}</td>
+
+
+                      <td className="py-4 px-4 font-medium">{transfer.amount}</td>
                   </tr>
                 ))}
               </tbody>
