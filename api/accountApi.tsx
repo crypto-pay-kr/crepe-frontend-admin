@@ -28,7 +28,7 @@ export const fetchPendingWithdrawAddresses = async (statuses: string[], page = 0
     try {
         const queryString = statuses.map(status => `statuses=${status}`).join('&');
 
-        const response = await fetch(`/api/admin/address/requests?page=${page}&size=${size}&${queryString}&isBankAccount=${isBankAccount}`, {
+        const response = await fetch(`${API_BASE_URL}/api/admin/address/requests?page=${page}&size=${size}&${queryString}&isBankAccount=${isBankAccount}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -58,7 +58,7 @@ export const fetchPendingWithdrawAddresses = async (statuses: string[], page = 0
 export const approveWithdrawAddress = async (accountId: number) => {
     const token = sessionStorage.getItem('accessToken');
     try {
-        const response = await fetch(`/api/admin/address/approve?accountId=${accountId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/admin/address/approve?accountId=${accountId}`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
@@ -82,7 +82,7 @@ export const approveWithdrawAddress = async (accountId: number) => {
 export const rejectAddressRequest = async (accountId: number) => {
     const token = sessionStorage.getItem('accessToken');
     try {
-        const response = await fetch(`/api/admin/address/reject/${accountId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/admin/address/reject/${accountId}`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
@@ -106,7 +106,7 @@ export const rejectAddressRequest = async (accountId: number) => {
 export const approveUnregisterRequest = async (accountId: number) => {
     const token = sessionStorage.getItem('accessToken');
     try {
-        const response = await fetch(`/api/admin/address/unregister/${accountId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/admin/address/unregister/${accountId}`, {
             method: 'PATCH',
             headers: {
                 Authorization: `Bearer ${token}`,
