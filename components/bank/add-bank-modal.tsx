@@ -160,6 +160,7 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
         name: "",
         bankCode: "",
         bankPhoneNum: "",
+        managerName: "",
       })
       setPasswordConfirm("")
       setBankImage(null)
