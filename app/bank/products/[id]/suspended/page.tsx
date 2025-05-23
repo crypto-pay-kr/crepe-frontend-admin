@@ -1,12 +1,12 @@
 "use client"
 import { useState, useEffect } from "react"
-import Link from "next/link"
 import { useRouter, useParams, useSearchParams } from "next/navigation"
 import { Search, ChevronLeft, ChevronRight, ArrowLeft, Eye, FileText, RotateCcw, AlertTriangle } from "lucide-react"
 import ProductDetailModal from "@/components/common/product-detail-modal"
-import PDFViewer from "@/components/common/pdf-viewer-modal"
 import { ConfirmationModal } from "@/components/common/confirm-modal"
+import PdfViewerModal from "@/components/common/pdf-viewer-modal"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 // API 응답 타입 정의
 interface BankProduct {
   id: number;
@@ -56,10 +56,10 @@ export default function SuspendedProductsList() {
   // 모달 상태
   const [restoreModalOpen, setRestoreModalOpen] = useState(false)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
-  const [pdfViewerOpen, setPdfViewerOpen] = useState(false)
+  const [pdfModalOpen, setPdfModalOpen] = useState(false) // 수정: pdfViewerOpen -> pdfModalOpen
   const [selectedProduct, setSelectedProduct] = useState<{id: number, productName: string} | null>(null)
   const [selectedDetailProduct, setSelectedDetailProduct] = useState<any>(null)
-  const [selectedPdfProduct, setSelectedPdfProduct] = useState<string>("")
+  const [selectedPdfData, setSelectedPdfData] = useState<{url: string, productName: string} | null>(null) // 수정: PDF 데이터 상태 추가
 
   // API 관련 상태
   const [suspendedProducts, setSuspendedProducts] = useState<BankProduct[]>([])
@@ -69,7 +69,7 @@ export default function SuspendedProductsList() {
   // API 호출 함수 - 판매정지 상품 목록 조회
   const fetchSuspendedProducts = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       
       if (!token) {
         throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
@@ -77,7 +77,7 @@ export default function SuspendedProductsList() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`http://localhost:8080/api/admin/bank/product/${bankId}/suspend`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/bank/product/${bankId}/suspend`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -111,20 +111,86 @@ export default function SuspendedProductsList() {
   }
 
   // 상품 상세 조회
-  const handleViewProductDetails = (productId: number) => {
-    const product = suspendedProducts.find(p => p.id === productId)
-    if (product) {
-      setSelectedDetailProduct(product)
-      setDetailModalOpen(true)
+  const handleViewProductDetails = async (productId: number) => {
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      
+      if (!token) {
+        throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
+      }
+
+      const apiUrl = `${API_BASE_URL}/api/admin/bank/${bankId}/product/${productId}`;
+  
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+
+      if (!response.ok) {
+        console.error('❌ API 요청 실패:', response.status, response.statusText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const productDetail = await response.json();
+      console.log('✅ 상세 조회 성공:', productDetail);
+      
+      setSelectedDetailProduct(productDetail); 
+      setDetailModalOpen(true);
+      
+    } catch (err) {
+      console.error('❌ 상품 상세 조회 실패:', err);
+      alert(`상품 상세 조회에 실패했습니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
     }
   }
 
-  // 상품 안내서 조회
-  const handleViewProductGuide = (productId: number) => {
-    const product = suspendedProducts.find(p => p.id === productId)
-    if (product) {
-      setSelectedPdfProduct(product.productName)
-      setPdfViewerOpen(true)
+  // 상품 안내서 조회 - API 호출로 수정
+  const handleViewProductGuide = async (productId: number, productName: string) => {
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      
+      if (!token) {
+        throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
+      }
+
+      const apiUrl = `${API_BASE_URL}/api/admin/bank/${bankId}/product/${productId}`;
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      
+      if (!response.ok) {
+        console.error('❌ API 요청 실패:', response.status, response.statusText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const productDetail = await response.json();
+    
+      
+      if (productDetail.guideFile) {
+ 
+        setSelectedPdfData({
+          url: productDetail.guideFile,
+          productName: productName
+        });
+        setPdfModalOpen(true);
+      } else {
+        console.warn('⚠️ 안내서 파일이 없습니다.');
+        alert('안내서 파일이 없습니다.');
+      }
+      
+    } catch (err) {
+      console.error('❌ 안내서 조회 실패:', err);
+      alert(`안내서 조회에 실패했습니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
     }
   }
 
@@ -144,13 +210,13 @@ export default function SuspendedProductsList() {
           description: '판매정지 해제'
         };
 
-        const token = localStorage.getItem('accessToken');
+        const token = sessionStorage.getItem('accessToken');
       
         if (!token) {
           throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
         }
 
-        const response = await fetch('http://localhost:8080/api/admin/bank/product/suspend', {
+        const response = await fetch(`${API_BASE_URL}/api/admin/bank/product/suspend`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -189,9 +255,10 @@ export default function SuspendedProductsList() {
     setSelectedDetailProduct(null);
   }
 
-  const handleClosePdfViewer = () => {
-    setPdfViewerOpen(false);
-    setSelectedPdfProduct("");
+  // PDF 모달 닫기 함수 수정
+  const handleClosePdfModal = () => {
+    setPdfModalOpen(false);
+    setSelectedPdfData(null);
   }
 
   // 검색 필터링된 상품 목록
@@ -355,7 +422,7 @@ export default function SuspendedProductsList() {
                       </td>
                       <td className="py-3 px-1">
                         <button
-                          onClick={() => handleViewProductGuide(product.id)}
+                          onClick={() => handleViewProductGuide(product.id, product.productName)}
                           className="w-full px-2 py-1 rounded-md text-xs font-medium border border-gray-400 text-gray-600 hover:bg-gray-50 hover:border-gray-500 transition-all flex items-center justify-center"
                         >
                           <FileText className="w-3 h-3 mr-1" />
@@ -439,11 +506,12 @@ export default function SuspendedProductsList() {
         product={selectedDetailProduct}
       />
 
-      {/* PDF 뷰어 */}
-      <PDFViewer 
-        isOpen={pdfViewerOpen} 
-        onClose={handleClosePdfViewer} 
-        productName={selectedPdfProduct}
+      {/* PDF 뷰어 모달 */}
+      <PdfViewerModal
+        isOpen={pdfModalOpen}
+        onClose={handleClosePdfModal}
+        pdfUrl={selectedPdfData?.url || ""}
+        productName={selectedPdfData?.productName || ""}
       />
     </div>
   )
