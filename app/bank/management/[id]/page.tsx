@@ -15,12 +15,25 @@ export default function BankDetails() {
   const params = useParams();
   const bankId = params.id || ""; // URL 경로에서 은행 ID 가져오기
   
-  // Next.js의 useSearchParams를 사용하여 URL 쿼리 파라미터에서 은행 이름 가져오기
+  // Next.js의 useSearchParams를 사용하여 URL 쿼리 파라미터에서 정보 가져오기
   const searchParams = useSearchParams();
   const bankName = searchParams.get('name') || "은행 이름"; // 기본값 설정
+  const phoneNum = searchParams.get('phoneNum') || "전화번호 없음"; // 전화번호 파라미터
+  const imageUrl = searchParams.get('imageUrl') || ""; // 이미지 URL 파라미터 추가
 
   // 삭제 확인 모달을 위한 상태 추가
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [imageError, setImageError] = useState(false); // 이미지 로딩 에러 상태
+
+  // 디버깅을 위한 useEffect 추가
+  useEffect(() => {
+    console.log('받은 파라미터들:', {
+      bankId,
+      bankName,
+      phoneNum,
+      imageUrl
+    });
+  }, [bankId, bankName, phoneNum, imageUrl]);
 
   // 삭제 모달 열기
   const openDeleteModal = () => {
@@ -38,6 +51,12 @@ export default function BankDetails() {
     // 실제 구현에서는 여기서 API 호출을 통해 삭제 처리할 수 있음
     closeDeleteModal();
     // 성공 후 리다이렉트 또는 다른 처리를 추가할 수 있음
+  };
+
+  // 이미지 로딩 에러 핸들러
+  const handleImageError = () => {
+    console.log('이미지 로딩 실패:', imageUrl);
+    setImageError(true);
   };
 
   return (
@@ -70,12 +89,31 @@ export default function BankDetails() {
           <div className="bg-white p-4 rounded-lg shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-md font-medium">은행 CI 이미지 정보</h2>
+              
             </div>
             <div className="w-full h-40 bg-gray-100 border border-gray-200 rounded-lg flex items-center justify-center">
               <div className="relative w-32 h-32">
-                <Image src={bankLogo} alt="Bank Logo" fill className="object-contain" />
+                {imageUrl && !imageError ? (
+                  <>
+                    <img 
+                      src={imageUrl} 
+                      alt={`${bankName} 로고`} 
+                      className="w-full h-full object-contain rounded-lg" 
+                      onError={handleImageError}
+                      onLoad={() => console.log('이미지 로딩 성공:', imageUrl)}
+                    />
+                  </>
+                ) : (
+                  <Image 
+                    src={bankLogo} 
+                    alt="기본 은행 로고" 
+                    fill 
+                    className="object-contain" 
+                  />
+                )}
               </div>
             </div>
+            
           </div>
 
           {/* Contact Info Section */}
@@ -84,9 +122,9 @@ export default function BankDetails() {
             <div className="mb-4">
               <input
                 type="text"
-                value="010-1234-4567"
+                value={phoneNum} // URL 파라미터에서 가져온 전화번호 사용
                 readOnly
-                className="w-full p-2 border border-gray-300 rounded-lg"
+                className="w-full p-2 border border-gray-300 rounded-lg bg-gray-50"
               />
             </div>
 
