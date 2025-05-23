@@ -90,18 +90,7 @@ export default function BankAccountRegistrationPage() {
   const handleApprove = (id: number, type: string, item: WaitingListItem<BankAccountRegistration>) => {
     // 선택된 아이템 저장
     setSelectedItem(item);
-    
-    // 아이템의 approveButtonText에 따라 다른 처리
-    if (item.approveButtonText === "해제 완료") {
-      // 해제 완료의 경우 확인 모달 표시
-      setShowConfirmationModal(true);
-    } else if (item.approveButtonText === "변경 완료") {
-      // 변경 완료의 경우 가맹점 정보 모달 표시
-      setShowMerchantModal(true);
-    } else if (item.approveButtonText === "등록완료") {
-      // 등록 완료의 경우 가맹점 정보 모달 표시
-      setShowMerchantModal(true);
-    }
+    setShowConfirmationModal(true);
   };
 
 
@@ -220,11 +209,11 @@ export default function BankAccountRegistrationPage() {
     },
     {
       key: 'accountNumber',
-      header: '계좌번호',
+      header: '계좌 주소',
     },
     {
       key: 'accountNumber2',
-      header: '계좌번호2',
+      header: '태그 주소',
     },
   ];
 
@@ -247,15 +236,15 @@ export default function BankAccountRegistrationPage() {
     let actionText = "";
 
     switch (selectedItem.approveButtonText) {
-      case "해제 완료":
+      case "해제 하기":
         title = "계좌 해제 확인";
         actionText = "해제";
         break;
-      case "변경 완료":
+      case "변경 하기":
         title = "가맹점 정보 변경 확인";
         actionText = "변경";
         break;
-      case "등록완료":
+      case "등록 하기":
         title = "계좌 등록 확인";
         actionText = "등록";
         break;
@@ -302,7 +291,7 @@ export default function BankAccountRegistrationPage() {
           onConfirm={handleConfirmAction}
           title={modalProps.title}
           targetName={modalProps.targetName}
-          targetType="정보"
+          targetType="계좌"
           actionText={modalProps.actionText}
         />
       )}

@@ -2,7 +2,8 @@
 import SuspensionModal from "@/components/common/suspension-modal";
 import { User, Search, ChevronLeft, ChevronRight, Filter,Wallet,BarChart4,CreditCard,Ban} from "lucide-react"
 import Link from "next/link";
-import { useState } from "react"
+import {useEffect, useState} from "react"
+import {fetchActorsByRole, GetActorInfoResponse} from "@/api/ActorApi";
 
 interface ModernUserManagementProps {
   onShowSuspendedList: () => void;
@@ -11,7 +12,32 @@ interface ModernUserManagementProps {
 export default function ModernUserManagement({ onShowSuspendedList }: ModernUserManagementProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<{ id: number; nickname: string; username: string; phone: string } | null>(null);
-  
+  const [actors, setActors] = useState<GetActorInfoResponse[]>([]);
+  const [role, setRole] = useState("USER");
+  const [page, setPage] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const onPageChange =async (page: number) => {
+    if (page >= 0 && page < totalPages) {
+      setCurrentPage(page);
+      await fetchActorsByRole(role, page);
+    }
+  };
+
+  useEffect(() => {
+    const loadActors = async () => {
+      try {
+        const result = await fetchActorsByRole(role, page);
+        setActors(result.content);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    loadActors();
+  }, [role, page]);
+
   const handleSuspend = (user: { id: number; nickname: string; username: string; phone: string }) => {
     setSelectedUser(user);
     setModalOpen(true);
@@ -68,48 +94,48 @@ export default function ModernUserManagement({ onShowSuspendedList }: ModernUser
               <thead>
                 <tr className="bg-gray-50">
                   <th className="py-3 px-4 text-left font-bold text-gray-500 text-sm">#</th>
-                  <th className="py-3 px-4 text-left font-bold text-gray-500 text-sm">닉네임</th>
+                  <th className="py-3 px-4 text-left font-bold text-gray-500 text-sm">이름</th>
                   <th className="py-3 px-4 text-left font-bold text-gray-500 text-sm">아이디</th>
                   <th className="py-3 px-4 text-left font-bold text-gray-500 text-sm">휴대폰번호</th>
                   <th className="py-3 px-4 text-middle font-bold text-gray-500 text-sm">관리</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
-                  <tr key={user.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
-                    <td className="py-4 px-4 text-gray-800">{user.id}</td>
+                {actors.map((actor,index) => (
+                  <tr key={actor.actorId} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
+                    <td className="py-4 px-4 text-gray-800">{index+1}</td>
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center text-pink-600 font-medium">
-                          {user.nickname.charAt(0)}
+                          {actor.actorName.charAt(0)}
                         </div>
-                        <span className="font-medium text-gray-800">{user.nickname}</span>
+                        <span className="font-medium text-gray-800">{actor.actorName}</span>
                       </div>
                     </td>
-                    <td className="py-4 px-4 text-gray-600">{user.username}</td>
-                    <td className="py-4 px-4 text-gray-600">{user.phone}</td>
+                    <td className="py-4 px-4 text-gray-600">{actor.actorEmail}</td>
+                    <td className="py-4 px-4 text-gray-600">{actor.actorPhoneNum}</td>
                     <td className="py-4 px-4">
                       <div className="flex justify-end gap-2">
                       <button
                         className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center ${
-                          user.id === 10 
+                          actor.actorId === 10 
                             ? "bg-pink-100 text-pink-600 cursor-not-allowed" 
                             : "border border-pink-500 text-pink-500 hover:bg-pink-50 cursor-pointer"
                         }`}
-                        onClick={() => user.id !== 10 && handleSuspend(user)}
+                        // onClick={() => actor.actorId!== 10 && handleSuspend(actor.actorId)}
                       >
                         <Ban className="w-4 h-4 mr-2" />
-                        {user.id === 10 ? "정지 상태" : "이용정지"}
+                        {"이용정지"}
                       </button>
 
-                      <Link href={`/management/user/wallet/${user.id}`}>
+                      <Link href={`/management/user/wallet/${actor.actorId}`}>
                         <button className="px-3 py-2 rounded-md text-sm font-medium border border-gray-400 text-gray-600 hover:bg-gray-50 hover:border-gray-500 transition-all flex items-center cursor-pointer">
                           <Wallet className="w-4 h-4 mr-2" />
                           계좌 관리
                         </button>
                     </Link>
                     
-                      <Link href={`/management/user/transfer/${user.id}`}>
+                      <Link href={`/management/user/transfer/${actor.actorId}`}>
                         <button className="px-3 py-2 rounded-md text-sm font-medium border border-gray-400 text-gray-600 hover:bg-gray-50 hover:border-gray-500 transition-all flex items-center cursor-pointer">
                           <BarChart4 className="w-4 h-4 mr-2" />
                           이체 내역
@@ -117,7 +143,7 @@ export default function ModernUserManagement({ onShowSuspendedList }: ModernUser
                       </Link>
 
                       {/* 결제 내역 버튼 - 보라색 */}
-                      <Link href={`/management/user/payment/${user.id}`}>
+                      <Link href={`/management/user/payment/${actor.actorId}`}>
                         <button className="px-3 py-2 rounded-md text-sm font-medium border border-gray-400 text-gray-600 hover:bg-gray-50 hover:border-gray-500 transition-all flex items-center cursor-pointer">
                           <CreditCard className="w-4 h-4 mr-2" />
                           결제 내역
@@ -131,40 +157,48 @@ export default function ModernUserManagement({ onShowSuspendedList }: ModernUser
               </tbody>
             </table>
           </div>
-          
-          
+
+
           {/* 페이지네이션 */}
-          <div className="flex flex-col items-center mt-6 gap-4">
-            <nav className="flex items-center justify-center gap-1">
-              <button className="w-9 h-9 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 transition-colors">
-                <ChevronLeft size={18} />
-              </button>
-              
-              <button className="w-9 h-9 flex items-center justify-center rounded-md bg-pink-500 text-white font-medium">
-                1
-              </button>
-              
-              <button className="w-9 h-9 flex items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 transition-colors">
-                2
-              </button>
-              
-              <button className="w-9 h-9 flex items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 transition-colors">
-                3
-              </button>
-              
-              <button className="w-9 h-9 flex items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 transition-colors">
-                ...
-              </button>
-              
-              <button className="w-9 h-9 flex items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 transition-colors">
-                5
-              </button>
-              
-              <button className="w-9 h-9 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 transition-colors">
-                <ChevronRight size={18} />
-              </button>
-            </nav>
-          </div>
+          {totalPages > 1 && (
+              <div className="flex flex-col items-center mt-6 gap-4">
+                <nav className="flex items-center justify-center gap-1">
+
+                  {/* 이전 버튼 */}
+                  {currentPage > 0 && (
+                      <button
+                          onClick={() => onPageChange(currentPage - 1)}
+                          className="w-9 h-9 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 transition-colors"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                  )}
+
+                  {/* 페이지 버튼들 */}
+                  {Array.from({ length: totalPages }, (_, i) => (
+                      <button
+                          key={i}
+                          onClick={() => onPageChange(i)}
+                          className={`w-9 h-9 flex items-center justify-center rounded-md transition-colors font-medium ${
+                              i === currentPage ? 'bg-pink-500 text-white' : 'text-gray-600 hover:bg-gray-100'
+                          }`}
+                      >
+                        {i + 1}
+                      </button>
+                  ))}
+
+                  {/* 다음 버튼 */}
+                  {currentPage < totalPages - 1 && (
+                      <button
+                          onClick={() => onPageChange(currentPage + 1)}
+                          className="w-9 h-9 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 transition-colors"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                  )}
+                </nav>
+              </div>
+          )}
         </div>
       </div>
         <SuspensionModal
@@ -176,66 +210,3 @@ export default function ModernUserManagement({ onShowSuspendedList }: ModernUser
     </div>
   )
 }
-
-const users = [
-  {
-    id: 1,
-    nickname: "Alyvia Kelley",
-    username: "a.kelley9999",
-    phone: "010-0000-0000",
-  },
-  {
-    id: 2,
-    nickname: "Jaiden Nixon",
-    username: "jaiden.n9999",
-    phone: "010-0000-0000",
-  },
-  {
-    id: 3,
-    nickname: "Ace Foley",
-    username: "ace.fo",
-    phone: "010-0000-0000",
-  },
-  {
-    id: 4,
-    nickname: "Nikolai Schmidt",
-    username: "nikolai.schmidt1964",
-    phone: "010-0000-0000",
-  },
-  {
-    id: 5,
-    nickname: "Clayton Charles",
-    username: "me@clayton",
-    phone: "010-0000-0000",
-  },
-  {
-    id: 6,
-    nickname: "Prince Chen",
-    username: "prince.chen1997",
-    phone: "010-0000-0000",
-  },
-  {
-    id: 7,
-    nickname: "Reece Duran",
-    username: "reece",
-    phone: "010-0000-0000",
-  },
-  {
-    id: 8,
-    nickname: "Anastasia Mcdaniel",
-    username: "anastasia.sprin",
-    phone: "010-0000-0000",
-  },
-  {
-    id: 9,
-    nickname: "Melvin Boyle",
-    username: "Me.boyle",
-    phone: "010-0000-0000",
-  },
-  {
-    id: 10,
-    nickname: "Kailee Thomas",
-    username: "Kailee.thomas",
-    phone: "010-0000-0000",
-  },
-]
