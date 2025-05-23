@@ -5,8 +5,9 @@ import { useRouter, useParams, useSearchParams } from "next/navigation"
 import { Search, ChevronLeft, ChevronRight, Filter, Ban, FileText, Eye, ArrowLeft, Check, X } from "lucide-react"
 import ProductActionModal from "@/components/common/product-modal"
 import ProductDetailModal from "@/components/common/product-detail-modal"
-import PDFViewer from "@/components/common/pdf-viewer-modal"
+import PdfViewerModal from "@/components/common/pdf-viewer-modal" // 새로 추가
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 // API 응답 타입 정의
 interface BankProduct {
   id: number;
@@ -66,12 +67,8 @@ const getTypeDisplay = (type: string) => {
       return '적금';
     case 'SAVING':
       return '예금';
-    case 'PENSION':
-      return '연금';
-    case 'CHECKING':
-      return '입출금';
-    case 'SUBSCRIPTION':
-      return '청약';
+    case 'VOUCHER':
+      return '상품권';
     default:
       return type;
   }
@@ -97,10 +94,10 @@ export default function BankProductManagement() {
   const [searchTerm, setSearchTerm] = useState("")
   const [actionModalOpen, setActionModalOpen] = useState(false)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
-  const [pdfViewerOpen, setPdfViewerOpen] = useState(false)
+  const [pdfModalOpen, setPdfModalOpen] = useState(false) // PDF 모달 상태 추가
   const [selectedProduct, setSelectedProduct] = useState<{id: number, productName: string, actionType: 'approve' | 'reject' | 'suspend'} | null>(null)
   const [selectedDetailProduct, setSelectedDetailProduct] = useState<any>(null)
-  const [selectedPdfProduct, setSelectedPdfProduct] = useState<string>("")
+  const [selectedPdfData, setSelectedPdfData] = useState<{url: string, productName: string} | null>(null) // PDF 데이터 상태 추가
   
   // API 관련 상태
   const [bankProducts, setBankProducts] = useState<BankProduct[]>([])
@@ -110,20 +107,19 @@ export default function BankProductManagement() {
   // API 호출 함수
   const fetchBankProducts = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       
       if (!token) {
         throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
       }
-      
+
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`http://localhost:8080/api/admin/bank/product/${bankId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/bank/product/${bankId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          
           'Authorization': `Bearer ${token}`,
         },
       });
@@ -154,21 +150,89 @@ export default function BankProductManagement() {
     product.productName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // 상품 안내서 조회
-  const handleViewProductGuide = (productId: number) => {
-    const product = bankProducts.find(p => p.id === productId)
-    if (product) {
-      setSelectedPdfProduct(product.productName)
-      setPdfViewerOpen(true)
+  // 상품 안내서 조회 - 모달로 변경
+  const handleViewProductGuide = async (productId: number, productName: string) => {
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      
+      if (!token) {
+        throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
+      }
+
+      // 🔍 URL 및 파라미터 디버깅
+      const apiUrl = `${API_BASE_URL}/api/admin/bank/${bankId}/product/${productId}`;
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      
+      if (!response.ok) {
+        console.error('❌ API 요청 실패:', response.status, response.statusText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const productDetail = await response.json();
+  
+      
+      if (productDetail.guideFile) {
+        console.log('🚀 모달에서 PDF 열기:', productDetail.guideFile);
+        // 🎯 PDF 모달 열기
+        setSelectedPdfData({
+          url: productDetail.guideFile,
+          productName: productName
+        });
+        setPdfModalOpen(true);
+      } else {
+        console.warn('⚠️ 안내서 파일이 없습니다.');
+        alert('안내서 파일이 없습니다.');
+      }
+      
+    } catch (err) {
+      console.error('❌ 안내서 조회 실패:', err);
+      alert(`안내서 조회에 실패했습니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
     }
   }
 
   // 상품 상세 조회
-  const handleViewProductDetails = (productId: number) => {
-    const product = bankProducts.find(p => p.id === productId)
-    if (product) {
-      setSelectedDetailProduct(product)
-      setDetailModalOpen(true)
+  const handleViewProductDetails = async (productId: number) => {
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      
+      if (!token) {
+        throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
+      }
+
+      // 🔍 URL 및 파라미터 디버깅
+      const apiUrl = `${API_BASE_URL}/api/admin/bank/${bankId}/product/${productId}`;
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      // 🔍 응답 상태 디버깅
+
+      if (!response.ok) {
+        console.error('❌ API 요청 실패:', response.status, response.statusText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const productDetail = await response.json();
+      
+      setSelectedDetailProduct(productDetail); 
+      setDetailModalOpen(true);
+      
+    } catch (err) {
+      console.error('❌ 상품 상세 조회 실패:', err);
+      alert(`상품 상세 조회에 실패했습니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
     }
   }
 
@@ -187,13 +251,13 @@ export default function BankProductManagement() {
 
         // 액션 타입에 따라 API 엔드포인트와 상태값 설정
         if (action === 'approve') {
-          apiUrl = 'http://localhost:8080/api/admin/bank/product/review';
+          apiUrl = `${API_BASE_URL}/api/admin/bank/product/review`;
           statusValue = 'APPROVED';
         } else if (action === 'reject') {
-          apiUrl = 'http://localhost:8080/api/admin/bank/product/review';
+          apiUrl = `${API_BASE_URL}/api/admin/bank/product/review`;
           statusValue = 'REJECTED';
         } else if (action === 'suspend') {
-          apiUrl = 'http://localhost:8080/api/admin/bank/product/suspend';
+          apiUrl = `${API_BASE_URL}/api/admin/bank/product/suspend`;
           statusValue = 'SUSPENDED';
         }
 
@@ -204,7 +268,7 @@ export default function BankProductManagement() {
           description: reason || ''
         };
         
-        const token = localStorage.getItem('accessToken');
+        const token = sessionStorage.getItem('accessToken');
       
         if (!token) {
           throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
@@ -231,7 +295,6 @@ export default function BankProductManagement() {
         
       } catch (err) {
         console.error('상품 액션 처리 실패:', err);
-        // 에러 처리 (토스트 메시지 등)
         alert(`상품 ${action} 처리에 실패했습니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
       }
     }
@@ -249,9 +312,10 @@ export default function BankProductManagement() {
     setSelectedDetailProduct(null);
   }
 
-  const handleClosePdfViewer = () => {
-    setPdfViewerOpen(false);
-    setSelectedPdfProduct("");
+  // PDF 모달 닫기 함수 추가
+  const handleClosePdfModal = () => {
+    setPdfModalOpen(false);
+    setSelectedPdfData(null);
   }
 
   // 상품 상태에 따른 버튼 렌더링
@@ -450,7 +514,7 @@ export default function BankProductManagement() {
                       </td>
                       <td className="py-3 px-1">
                         <button
-                          onClick={() => handleViewProductGuide(product.id)}
+                          onClick={() => handleViewProductGuide(product.id, product.productName)}
                           className="w-full px-2 py-1 rounded-md text-xs font-medium border border-gray-400 text-gray-600 hover:bg-gray-50 hover:border-gray-500 transition-all flex items-center justify-center"
                         >
                           <FileText className="w-3 h-3 mr-1" />
@@ -528,13 +592,15 @@ export default function BankProductManagement() {
         isOpen={detailModalOpen}
         onClose={handleCloseDetailModal}
         product={selectedDetailProduct}
+        bankName={bankName} 
       />
 
-      {/* PDF 뷰어 */}
-      <PDFViewer 
-        isOpen={pdfViewerOpen} 
-        onClose={handleClosePdfViewer} 
-        productName={selectedPdfProduct}
+      {/* PDF 뷰어 모달 */}
+      <PdfViewerModal
+        isOpen={pdfModalOpen}
+        onClose={handleClosePdfModal}
+        pdfUrl={selectedPdfData?.url || ""}
+        productName={selectedPdfData?.productName || ""}
       />
     </div>
   )
