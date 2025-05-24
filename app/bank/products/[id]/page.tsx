@@ -104,6 +104,9 @@ export default function BankProductManagement() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  //페이지네이션
+  const [itemsPerPage] = useState(10)
+
   // API 호출 함수
   const fetchBankProducts = async () => {
     try {
@@ -318,6 +321,48 @@ export default function BankProductManagement() {
     setSelectedPdfData(null);
   }
 
+  const totalItems = filteredProducts.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentProducts = filteredProducts.slice(startIndex, endIndex);
+
+  // 페이지 변경 함수
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  // 검색어 변경 시 첫 페이지로 리셋
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1); // 검색 시 첫 페이지로 이동
+  };
+
+  // 페이지 번호 배열 생성 (현재 페이지 주변 5개 페이지 표시)
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      // 전체 페이지가 5개 이하면 모두 표시
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      // 전체 페이지가 5개 초과면 현재 페이지 중심으로 표시
+      const startPage = Math.max(1, currentPage - 2);
+      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+      
+      for (let i = startPage; i <= endPage; i++) {
+        pageNumbers.push(i);
+      }
+    }
+    
+    return pageNumbers;
+  };
+
   // 상품 상태에 따른 버튼 렌더링
   const renderActionButton = (product: BankProduct) => {
     switch (product.status) {
@@ -482,16 +527,16 @@ export default function BankProductManagement() {
                 </tr>
               </thead>
               <tbody>
-                {filteredProducts.length === 0 ? (
+                {currentProducts.length === 0 ? (
                   <tr>
                     <td colSpan={11} className="py-8 text-center text-gray-500">
                       {searchTerm ? '검색 결과가 없습니다.' : '등록된 상품이 없습니다.'}
                     </td>
                   </tr>
                 ) : (
-                  filteredProducts.map((product) => (
+                  currentProducts.map((product, index) => (
                     <tr key={product.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
-                      <td className="py-3 px-2 text-xs font-medium text-gray-800">{product.id}</td>
+                      <td className="py-3 px-2 text-xs font-medium text-gray-800">{startIndex + index + 1}</td>
                       <td className="py-3 px-2 text-xs font-medium text-gray-800">{product.productName}</td>
                       <td className="py-3 px-2 text-xs text-gray-600">{getTypeDisplay(product.type)}</td>
                       <td className="py-3 px-2 text-xs text-gray-600">{product.bankName}</td>
@@ -537,44 +582,77 @@ export default function BankProductManagement() {
             </table>
           </div>
 
-          {/* 페이지네이션 */}
-          <div className="flex flex-col items-center mt-6 gap-4">
-            <nav className="flex items-center justify-center gap-1">
-              <button 
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-                className={`w-9 h-9 flex items-center justify-center rounded-md ${
-                  currentPage === 1 ? "text-gray-300" : "text-gray-400 hover:bg-gray-100"
-                } transition-colors`}
-              >
-                <ChevronLeft size={18} />
-              </button>
-              
-              {[1, 2, 3, 4, 5].map((page) => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
+          {totalPages > 1 && (
+            <div className="flex flex-col items-center mt-6 gap-4">
+              <nav className="flex items-center justify-center gap-1">
+                {/* 이전 페이지 버튼 */}
+                <button 
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
                   className={`w-9 h-9 flex items-center justify-center rounded-md ${
-                    currentPage === page 
-                      ? "bg-pink-500 text-white font-medium" 
-                      : "text-gray-600 hover:bg-gray-100 transition-colors"
-                  }`}
+                    currentPage === 1 ? "text-gray-300 cursor-not-allowed" : "text-gray-400 hover:bg-gray-100"
+                  } transition-colors`}
                 >
-                  {page}
+                  <ChevronLeft size={18} />
                 </button>
-              ))}
+                
+                {currentPage > 3 && totalPages > 5 && (
+                  <>
+                    <button
+                      onClick={() => handlePageChange(1)}
+                      className="w-9 h-9 flex items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
+                    >
+                      1
+                    </button>
+                    {currentPage > 4 && (
+                      <span className="px-2 text-gray-400">...</span>
+                    )}
+                  </>
+                )}
+                
+                {getPageNumbers().map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`w-9 h-9 flex items-center justify-center rounded-md ${
+                      currentPage === page 
+                        ? "bg-pink-500 text-white font-medium" 
+                        : "text-gray-600 hover:bg-gray-100"
+                    } transition-colors`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                
+                {currentPage < totalPages - 2 && totalPages > 5 && (
+                  <>
+                    {currentPage < totalPages - 3 && (
+                      <span className="px-2 text-gray-400">...</span>
+                    )}
+                    <button
+                      onClick={() => handlePageChange(totalPages)}
+                      className="w-9 h-9 flex items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
+                    >
+                      {totalPages}
+                    </button>
+                  </>
+                )}
+                <button 
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={`w-9 h-9 flex items-center justify-center rounded-md ${
+                    currentPage === totalPages ? "text-gray-300 cursor-not-allowed" : "text-gray-400 hover:bg-gray-100"
+                  } transition-colors`}
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </nav>
               
-              <button 
-                onClick={() => setCurrentPage(Math.min(5, currentPage + 1))}
-                disabled={currentPage === 5}
-                className={`w-9 h-9 flex items-center justify-center rounded-md ${
-                  currentPage === 5 ? "text-gray-300" : "text-gray-400 hover:bg-gray-100"
-                } transition-colors`}
-              >
-                <ChevronRight size={18} />
-              </button>
-            </nav>
-          </div>
+              <div className="text-sm text-gray-500">
+                {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems}개 표시
+              </div>
+            </div>
+          )}
         </div>
       </div>
       

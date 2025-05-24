@@ -416,7 +416,7 @@ export default function TokenRequests() {
                   <tbody>
                     {filteredRequests.map((request, index) => (
                       <tr key={request.tokenHistoryId} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-4 px-4 text-gray-800">{index + 1}</td>
+                        <td className="py-4 px-4 text-gray-800">{currentPage * pagination.size + index + 1}</td>
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center text-pink-600 font-medium">

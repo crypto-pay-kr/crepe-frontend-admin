@@ -17,11 +17,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     // 로딩이 완료된 후에만 리다이렉트 처리
     if (!isLoading) {
       // 로그인된 사용자가 로그인 페이지에 접근하려고 할 때 리다이렉트
-      if (isAuthenticated && isLoginPage) {
-        router.push('/dashboard'); // 또는 원하는 기본 페이지로 리다이렉트
-      }
-      // 로그인하지 않은 사용자가 보호된 페이지에 접근하려고 할 때 리다이렉트
-      else if (!isAuthenticated && !isLoginPage) {
+      if (!isAuthenticated && !isLoginPage) {
         router.push('/login');
       }
     }

@@ -330,27 +330,6 @@ export default function SuspendedProductsList() {
           </div>
         </div>
 
-        {/* 상품 정보 요약 */}
-        <div className="p-6 bg-red-50">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-red-600">{filteredProducts.length}</div>
-              <div className="text-sm text-gray-600">판매정지 상품 수</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-700">
-                ₩{filteredProducts.reduce((sum, product) => sum + product.totalBudget, 0).toLocaleString()}
-              </div>
-              <div className="text-sm text-gray-600">총 예치금</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-700">
-                {filteredProducts.reduce((sum, product) => sum + product.totalParticipants, 0)}명
-              </div>
-              <div className="text-sm text-gray-600">총 예치 인원</div>
-            </div>
-          </div>
-        </div>
 
         {/* 검색 */}
         <div className="p-6 bg-white">

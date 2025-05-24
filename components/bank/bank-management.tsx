@@ -63,12 +63,12 @@ export default function BankManagement({ onShowSuspendedList }: BankManagementPr
       
       const data = await response.json();
       
-      // 데이터 유효성 검사 및 변환 (imageUrl 필드 포함)
+  
       const validBanks = Array.isArray(data) ? data.map(bank => ({
         id: bank.id || 0,
         name: bank.name || '이름 없음',
         bankPhoneNum: bank.bankPhoneNum || '-',
-        imageUrl: bank.imageUrl || '', // imageUrl 필드 추가
+        imageUrl: bank.imageUrl || '', 
         totalSupply: bank.totalSupply || 0
       })) : [];
       
