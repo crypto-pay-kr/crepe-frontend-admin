@@ -46,7 +46,7 @@ export default function BankWallet() {
   useEffect(() => {
     const fetchBankAccounts = async () => {
       try {
-        const token = localStorage.getItem('accessToken');
+        const token = sessionStorage.getItem('accessToken');
         
         if (!token) {
           throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
@@ -95,7 +95,7 @@ export default function BankWallet() {
   // 은행용 계좌 연결 해제 처리
   const handleDisconnectBankAccount = async (accountId: string, coinName: string) => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       
       if (!token) {
         throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');

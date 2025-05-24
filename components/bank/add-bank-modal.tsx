@@ -127,7 +127,7 @@ const AddBankModal: React.FC<BankModalProps> = ({ isOpen, onClose, onSubmit }) =
       
       // 이미지 파일 첨부
       formDataToSend.append('BankCiImage', bankImage)
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
     
       if (!token) {
         throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
