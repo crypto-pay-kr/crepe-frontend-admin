@@ -93,7 +93,6 @@ function LoginPage() {
             // 로그인 요청에 캡차 정보 포함
             await login(loginId, password, captchaKey, captchaValue);
             
-            // sessionStorage 기반이므로 추가 설정 불필요
             router.push('/management/dashboard');
         } catch (error) {
             if (error instanceof Error) {

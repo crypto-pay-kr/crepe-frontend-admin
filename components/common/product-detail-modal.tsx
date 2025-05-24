@@ -22,6 +22,7 @@ interface ProductDetail {
   baseInterestRate: number
   joinCondition?: JoinCondition | null
   maxParticipants: number
+  subscribeCount?: number  // 현재 가입자 수 추가
   maxMonthlyPayment: number
   rateConditions?: PreferentialCondition[]
   guideFile?: string | null      
@@ -101,6 +102,12 @@ export default function ProductDetailModal({ isOpen, onClose, product, bankName 
     }
   }
 
+  // 가입률 계산
+  const calculateSubscriptionRate = (current: number, max: number) => {
+    if (max === 0) return 0
+    return Math.round((current / max) * 100)
+  }
+
   // 가입 조건 텍스트 변환 (안전한 체크 포함)
   const formatJoinCondition = (joinCondition: JoinCondition | null | undefined) => {
     if (!joinCondition) {
@@ -136,6 +143,7 @@ export default function ProductDetailModal({ isOpen, onClose, product, bankName 
     ...product,
     baseInterestRate: product.baseInterestRate || 0,
     maxParticipants: product.maxParticipants || 0,
+    subscribeCount: product.subscribeCount || 0,  // 기본값 0 설정
     maxMonthlyPayment: product.maxMonthlyPayment || 0,
     budget: product.budget || 0,
     tags: product.tags || [],
@@ -147,6 +155,7 @@ export default function ProductDetailModal({ isOpen, onClose, product, bankName 
   }
 
   const { ageText, occupationText, incomeText } = formatJoinCondition(product.joinCondition)
+  const subscriptionRate = calculateSubscriptionRate(safeProduct.subscribeCount, safeProduct.maxParticipants)
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-md animate-in fade-in duration-300 p-4">
@@ -251,11 +260,34 @@ export default function ProductDetailModal({ isOpen, onClose, product, bankName 
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl border border-white/50">
-                      <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">최대 가입자</label>
-                      <p className="text-lg font-black text-gray-900">{formatAmount(safeProduct.maxParticipants)}명</p>
+                  {/* 가입자 수 섹션 - 새로 추가 */}
+                  <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl border border-white/50">
+                    <label className="block text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider">가입 현황</label>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-lg font-black text-gray-900">
+                        {formatAmount(safeProduct.subscribeCount)} / {formatAmount(safeProduct.maxParticipants)}명
+                      </span>
+                      <span className="text-sm font-bold text-gray-600">
+                        {subscriptionRate}% 달성
+                      </span>
                     </div>
+                    {/* 진행률 바 */}
+                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-emerald-400 to-cyan-500 transition-all duration-500 ease-out relative"
+                        style={{ width: `${Math.min(subscriptionRate, 100)}%` }}
+                      >
+                        <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                      </div>
+                    </div>
+                    {subscriptionRate >= 90 && (
+                      <div className="mt-2 text-xs font-bold text-orange-600 flex items-center gap-1">
+                        ⚠️ 마감 임박
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
                     <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl border border-white/50">
                       <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">월 최대 입금액</label>
                       <p className="text-lg font-black text-gray-900">{formatAmount(safeProduct.maxMonthlyPayment)}원</p>
