@@ -180,7 +180,6 @@ export default function BankProductManagement() {
       }
 
       const productDetail = await response.json();
-  
       
       if (productDetail.guideFile) {
         console.log('🚀 모달에서 PDF 열기:', productDetail.guideFile);
@@ -229,7 +228,7 @@ export default function BankProductManagement() {
       }
 
       const productDetail = await response.json();
-      
+      console.log('🚀 상품 상세 조회 성공:', productDetail);
       setSelectedDetailProduct(productDetail); 
       setDetailModalOpen(true);
       
