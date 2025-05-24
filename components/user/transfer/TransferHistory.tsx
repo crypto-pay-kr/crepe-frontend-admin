@@ -94,7 +94,14 @@ export default function TransferHistory({
               {transactions.map((transfer, index) => (
                   <tr key={index} className="border-b border-gray-100">
                     <td className="py-4 px-4 text-gray-800">{transfer.currency}</td>
-                    <td className="py-4 px-4 text-gray-800">{transfer.transferAt.split("T")[0]}</td>
+                    <td className="py-4 px-4 text-gray-800">{new Date(transfer.transferAt).toLocaleString("ko-KR", {
+                      year: "numeric",
+                      month: "2-digit",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false
+                    })}</td>
                     <td className="py-4 px-4 text-gray-800 max-w-xs truncate">
                       <span title={transfer.transactionId}>{transfer.transactionId}</span>
                     </td>
