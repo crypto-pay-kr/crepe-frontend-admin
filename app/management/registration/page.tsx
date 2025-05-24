@@ -11,7 +11,7 @@ import {
   approveWithdrawAddress,
   fetchPendingWithdrawAddresses,
   rejectAddressRequest
-} from '@/api/adminAccountApi';
+} from '@/api/accountApi';
 
 interface UserAccountRegistration {
   depositorName: string;

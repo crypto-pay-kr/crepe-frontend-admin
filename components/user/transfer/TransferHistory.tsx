@@ -2,6 +2,9 @@
 
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
+import {useParams} from "next/navigation";
+import {useEffect, useState} from "react";
+import {fetchUserTransactionHistory} from "@/api/ActorApi";
 
 interface TransferHistoryProps {
   userId?: string | string[];
@@ -9,6 +12,14 @@ interface TransferHistoryProps {
   type?: "user" | "merchant"; // 사용자 타입 지정
   title?: string; // 커스텀 제목
   backPath?: string; // 돌아가기 경로
+}
+interface GetTransactionHistoryResponse {
+  currency: string;
+  transactionId: string;
+  transactionStatus: string;
+  amount: string;
+  transferAt: string;
+  transactionType: string;
 }
 
 export default function TransferHistory({ 
@@ -18,7 +29,31 @@ export default function TransferHistory({
   title = "이체내역",
   backPath = type === "user" ? "/management/user" : "/management/store",
 }: TransferHistoryProps) {
-  
+
+  const { id } = useParams();
+  const [transactions, setTransactions] = useState<GetTransactionHistoryResponse[]>([]);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
+  useEffect(() => {
+    console.log("actorId 확인:", id);
+    const load = async () => {
+      if (!id) return;
+
+      try {
+        const data = await fetchUserTransactionHistory(Number(id),0,5);
+
+        setTransactions(data.content);
+        setTotalPages(data.totalPages);
+      } catch (e) {
+        console.error('거래 내역 불러오기 실패:', e);
+      }
+    };
+
+    load();
+  }, [id, page]);
+
+
 
   
   return (
@@ -46,29 +81,33 @@ export default function TransferHistory({
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="py-3 px-4 text-left font-medium text-gray-600">코인 종류</th>
-                  <th className="py-3 px-4 text-left font-medium text-gray-600">거래 날짜</th>
-                  <th className="py-3 px-4 text-left font-medium text-gray-600">거래 ID</th>
-                  <th className="py-3 px-4 text-left font-medium text-gray-600">상태</th>
-                  <th className="py-3 px-4 text-left font-medium text-gray-600">거래 금액</th>
-                </tr>
+              <tr className="border-b border-gray-200">
+                <th className="py-3 px-4 text-left font-medium text-gray-600">코인 종류</th>
+                <th className="py-3 px-4 text-left font-medium text-gray-600">거래 날짜</th>
+                <th className="py-3 px-4 text-left font-medium text-gray-600">거래 ID</th>
+                <th className="py-3 px-4 text-left font-medium text-gray-600">상태</th>
+                <th className="py-3 px-4 text-left font-medium text-gray-600">타입</th>
+                <th className="py-3 px-4 text-left font-medium text-gray-600">거래 금액</th>
+              </tr>
               </thead>
               <tbody>
-                {transferHistory.map((transfer, index) => (
+              {transactions.map((transfer, index) => (
                   <tr key={index} className="border-b border-gray-100">
-                    <td className="py-4 px-4 text-gray-800">{transfer.coinType}</td>
-                    <td className="py-4 px-4 text-gray-800">{transfer.date}</td>
+                    <td className="py-4 px-4 text-gray-800">{transfer.currency}</td>
+                    <td className="py-4 px-4 text-gray-800">{transfer.transferAt.split("T")[0]}</td>
                     <td className="py-4 px-4 text-gray-800 max-w-xs truncate">
                       <span title={transfer.transactionId}>{transfer.transactionId}</span>
                     </td>
                     <td className="py-4 px-4">
-                      <div className={`${transfer.status.includes("실패") ? "text-red-500" : "text-green-500"}`}>
-                        {transfer.status}
+                      {/*<div className={`${transfer.transactionStatus ? "text-red-500" : "text-green-500"}`}>*/}
+                      <div>
+                        {transfer.transactionStatus}
                       </div>
-                      {transfer.errorCode && <div className="text-sm text-gray-500">{transfer.errorCode}</div>}
                     </td>
-                    <td className="py-4 px-4 font-medium">{transfer.amount}</td>
+                    <td className="py-4 px-4">{transfer.transactionType}</td>
+
+
+                      <td className="py-4 px-4 font-medium">{transfer.amount}</td>
                   </tr>
                 ))}
               </tbody>
@@ -79,23 +118,3 @@ export default function TransferHistory({
     </div>
   )
 }
-
-// 샘플 데이터
-const transferHistory = [
-  {
-    coinType: "리플",
-    date: "2024/12/27",
-    transactionId: "olkdjfierjqnkjkdjf3249udnf982k2nelkn",
-    status: "입금 실패",
-    errorCode: "Error Code: ~~~",
-    amount: "10 XRP",
-  },
-  {
-    coinType: "리플",
-    date: "2024/12/26",
-    transactionId: "olkdjfierjqnkjkdjf3249udnf982k2nelkn",
-    status: "입금",
-    errorCode: "",
-    amount: "10 XRP",
-  },
-]
