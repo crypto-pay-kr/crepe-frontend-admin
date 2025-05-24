@@ -1,4 +1,4 @@
-// const BASE_URL = import.meta.env.VITE_API_SERVER_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
 import {GetAccountInfoResponse} from "@/components/common/account/AccountInfo";
 
 interface RawPendingWithdrawAddress {
@@ -19,7 +19,7 @@ interface PendingAddressApiResponse {
     number: number; // 현재 페이지 번호
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
 
 
 //출금 주소 등록 요청 조회
