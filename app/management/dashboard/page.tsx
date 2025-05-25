@@ -101,7 +101,7 @@ export default function UserDashBoard() {
         <div className="grid grid-cols-4 gap-6 mb-12">
           <StatCard
               icon={<BarChart3 size={22} className="text-white" />}
-              label="총 대금 결제량"
+              label="총 코인 거래량"
               value={
                 totalUsageInKRW > 0
                     ? `${totalUsageInKRW.toLocaleString()} KRW`
