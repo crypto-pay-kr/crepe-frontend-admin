@@ -5,12 +5,22 @@ export interface GetActorInfoResponse {
     actorName: string;
     actorEmail: string;
     actorPhoneNum: string;
+    actorRole: string; 
     actorStatus: string;
+    suspensionInfo?: SuspensionInfo; 
 }
 
+export interface SuspensionInfo {
+    type: string;
+    suspendedAt: string;
+    suspendedUntil?: string;
+    reason: string;
+    suspensionPeriod: string; 
+}
 
 export const fetchActorsByRole = async (
     role: string,
+    status?: string, 
     page: number = 0,
     size: number = 10
 ): Promise<{
@@ -19,24 +29,36 @@ export const fetchActorsByRole = async (
     number: number;
 }> => {
     const token = sessionStorage.getItem('accessToken');
+    
+    // URL 파라미터 동적 생성
+    const params = new URLSearchParams({
+        role,
+        page: page.toString(),
+        size: size.toString()
+    });
+    
+    // status가 제공된 경우에만 추가
+    if (status) {
+        params.append('status', status);
+    }
+    
     const res = await fetch(
-        `${API_BASE_URL}/api/admin/actors?role=${role}&page=${page}&size=${size}`,
+        `${API_BASE_URL}/api/admin/actors?${params}`,
         {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}` // 토큰 필요 시
+                Authorization: `Bearer ${token}`
             }
         }
     );
 
     if (!res.ok) {
-        throw new Error('가맹점 및 유저 목록 불러오기 실패');
+        throw new Error('목록 불러오기 실패');
     }
 
     return res.json();
 };
-
 
 export const fetchUserTransactionHistory = async (
     actorId: number,
@@ -50,7 +72,7 @@ export const fetchUserTransactionHistory = async (
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                 Authorization: `Bearer ${token}`
+                Authorization: `Bearer ${token}`
             },
         }
     );

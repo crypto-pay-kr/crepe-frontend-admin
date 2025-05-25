@@ -1,91 +1,107 @@
 "use client"
 
+import { useEffect, useState } from "react";
 import SuspendedList from "@/components/common/suspended-list";
+import { fetchActorsByRole, GetActorInfoResponse } from "@/api/ActorApi";
+import { changeActorStatus } from "@/api/adminApi";
 
 interface SuspendedUsersListProps {
   onBack: () => void;
 }
 
-export default function SuspendedUsersList({ onBack }: SuspendedUsersListProps) {
-  // 사용자 정지 데이터 (타입 수정)
-  const suspendedUsers = [
-    {
-      id: 1,
-      name: "유저 닉네임",
-      suspendedDate: "2025/01/07",
-      suspensionPeriod: "7일 이용정지",
-      reason: "문의 내역 게인정보 남겨 신고사항 게인거래 유도",
-    },
-    {
-      id: 2,
-      name: "유저 닉네임",
-      suspendedDate: "2025/01/07",
-      suspensionPeriod: "7일 이용정지",
-      reason: "문의 내역 게인정보 남겨 신고사항 게인거래 유도",
-    },
-    {
-      id: 3,
-      name: "유저 닉네임",
-      suspendedDate: "2025/01/07",
-      suspensionPeriod: "7일 이용정지",
-      reason: "문의 내역 게인정보 남겨 신고사항 게인거래 유도",
-    },
-    {
-      id: 4,
-      name: "유저 닉네임",
-      suspendedDate: "2025/01/07",
-      suspensionPeriod: "7일 이용정지",
-      reason: "문의 내역 게인정보 남겨 신고사항 게인거래 유도",
-    },
-    {
-      id: 5,
-      name: "유저 닉네임",
-      suspendedDate: "2025/01/07",
-      suspensionPeriod: "7일 이용정지",
-      reason: "문의 내역 게인정보 남겨 신고사항 게인거래 유도",
-    },
-    {
-      id: 6,
-      name: "유저 닉네임",
-      suspendedDate: "2025/01/07",
-      suspensionPeriod: "7일 이용정지",
-      reason: "문의 내역 게인정보 남겨 신고사항 게인거래 유도",
-    },
-    {
-      id: 7,
-      name: "유저 닉네임",
-      suspendedDate: "2025/01/07",
-      suspensionPeriod: "7일 이용정지",
-      reason: "문의 내역 게인정보 남겨 신고사항 게인거래 유도",
-    },
-    {
-      id: 8,
-      name: "유저 닉네임",
-      suspendedDate: "2025/01/07",
-      suspensionPeriod: "7일 이용정지",
-      reason: "문의 내역 게인정보 남겨 신고사항 게인거래 유도",
-    },
-    {
-      id: 9,
-      name: "유저 닉네임",
-      suspendedDate: "2025/01/07",
-      suspensionPeriod: "7일 이용정지",
-      reason: "문의 내역 게인정보 남겨 신고사항 게인거래 유도",
-    },
-    {
-      id: 10,
-      name: "유저 닉네임",
-      suspendedDate: "2025/01/07",
-      suspensionPeriod: "7일 이용정지",
-      reason: "문의 내역 게인정보 남겨 신고사항 게인거래 유도",
-    },
-  ];
+interface SuspendedUser {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  suspendedDate: string;
+  suspensionPeriod: string;
+  reason: string;
+  suspensionEndDate?: string;
+}
 
-  // 정지 해제 처리 (단일 ID로 수정)
-  const handleRemoveSuspension = (id: number) => {
-    console.log("유저 이용정지 해제:", id);
-    // 실제 구현에서는 API 호출 등을 통해 이용정지 해제 처리
+export default function SuspendedUsersList({ onBack }: SuspendedUsersListProps) {
+  const [suspendedUsers, setSuspendedUsers] = useState<SuspendedUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // 정지된 유저 목록 조회
+  const loadSuspendedUsers = async (pageNum: number = 0) => {
+    try {
+      setLoading(true);
+      const result = await fetchActorsByRole("USER", "SUSPENDED", pageNum, 10);
+      
+      const transformedUsers: SuspendedUser[] = result.content.map((actor: GetActorInfoResponse) => ({
+        id: actor.actorId,
+        name: actor.actorName,
+        email: actor.actorEmail,
+        phone: actor.actorPhoneNum,
+        suspendedDate: actor.suspensionInfo?.suspendedAt ? 
+            new Date(actor.suspensionInfo.suspendedAt).toLocaleDateString('ko-KR') : "미상",
+        suspensionPeriod: actor.suspensionInfo?.suspensionPeriod || "정지중", // 백엔드에서 계산된 값 사용
+        reason: actor.suspensionInfo?.reason || "사유 없음",
+        suspensionEndDate: actor.suspensionInfo?.suspendedUntil
+    }));
+      
+      setSuspendedUsers(transformedUsers);
+      setTotalPages(result.totalPages);
+    } catch (error) {
+      console.error("정지된 유저 목록 조회 실패:", error);
+      setSuspendedUsers([]);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    loadSuspendedUsers();
+  }, []);
+
+  const handleRemoveSuspension = async (id: number) => {
+    try {
+      const request = {
+        actorId: id,
+        action: "UNSUSPEND" as const
+      };
+      
+      const response = await changeActorStatus(request);
+      
+      // 성공 시 목록에서 즉시 제거
+      setSuspendedUsers(prev => prev.filter(user => user.id !== id));
+    
+      // 현재 페이지가 비어있으면 이전 페이지로 이동
+      const remainingUsers = suspendedUsers.filter(user => user.id !== id);
+      if (remainingUsers.length === 0 && page > 0) {
+        const newPage = page - 1;
+        setPage(newPage);
+        await loadSuspendedUsers(newPage);
+      } else {
+        // 서버에서 최신 정지 목록 다시 가져오기
+        await loadSuspendedUsers(page);
+      }
+      
+    } catch (error) {
+      console.error("정지 해제 실패:", error);
+    }
+  };
+
+  // 페이지 변경 처리
+  const handlePageChange = async (newPage: number) => {
+    setPage(newPage);
+    await loadSuspendedUsers(newPage);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">정지된 유저 목록을 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <SuspendedList
@@ -93,6 +109,9 @@ export default function SuspendedUsersList({ onBack }: SuspendedUsersListProps) 
       type="user"
       items={suspendedUsers}
       onRemoveSuspension={handleRemoveSuspension}
+      currentPage={page}
+      totalPages={totalPages}
+      onPageChange={handlePageChange}
     />
   );
 }
