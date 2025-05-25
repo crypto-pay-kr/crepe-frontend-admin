@@ -1,8 +1,79 @@
+"use client"
+
 import { BarChart3, Briefcase, Package, Building2,TrendingUp } from "lucide-react"
 import { StatCard } from "@/components/dashboard/statCard";
 import { CoinUsageBar } from "@/components/dashboard/coinUsageBar";
+import {fetchAllCoinUsage, fetchCoinPrices} from "@/api/dashboard";
+import {useEffect, useState} from "react";
 
 export default function BankDashBoard() {
+  const [coinUsageList, setCoinUsageList] = useState<CoinUsageDto[]>([]);
+  const [coinUsageData, setCoinUsageData] = useState<CoinUsageDto[]>([]);
+  const [coinTotal, setCoinTotal] = useState<number | null>(null);
+  const [prices, setPrices] = useState<{ [key: string]: number }>({
+    "KRW-SOL": 0,
+    "KRW-XRP": 0,
+    "KRW-USDT": 0,
+  });
+
+
+  interface CoinUsageDto {
+    currency: string;
+    usageAmount: number;
+  }
+
+  const getColorByCoin = (currency: string) => {
+    switch (currency.toUpperCase()) {
+      case "XRP": return "from-green-500 to-emerald-400";
+      case "USDT": return "from-blue-500 to-cyan-400";
+      case "SOL": return "from-violet-500 to-purple-400";
+      case "KRWT": return "from-pink-500 to-rose-400";
+      default: return "from-gray-400 to-gray-500";
+    }
+  };
+
+  const getKoreanLabel = (currency: string) => {
+    switch (currency.toUpperCase()) {
+      case "XRP": return "XRP(리플)";
+      case "USDT": return "USDT(테더)";
+      case "SOL": return "SOL(솔라나)";
+      case "KRWT": return "KRWT(K-테더)";
+      default: return currency;
+    }
+  };
+
+  useEffect(() => {
+    fetchAllCoinUsage()
+        .then(setCoinUsageList)
+        .catch(err => console.error(err));
+  }, []);
+
+  // 2. 코인 시세 가져오기
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const updatedPrices = await fetchCoinPrices();
+        setPrices(updatedPrices);
+      } catch (err) {
+        console.error("Error fetching prices:", err);
+      }
+    };
+
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const totalInKRW = coinTotal
+      ? Object.entries(coinTotal).reduce((acc, [symbol, amount]) => {
+        const numericAmount = typeof amount === "number" ? amount : 0;
+        const price = prices[`KRW-${symbol.toUpperCase()}`] ?? 0;
+        return acc + numericAmount * price;
+      }, 0)
+      : 0;
+
+
+
   return (
     <div className="p-8 bg-gray-50">
       <div className="grid grid-cols-4 gap-6 mb-12">
@@ -64,10 +135,22 @@ export default function BankDashBoard() {
           </div>
 
           <div className="space-y-6">
-            <CoinUsageBar coin="XRP(리플)" value={121799} maxValue={150000} color="from-green-500 to-emerald-400" />
-            <CoinUsageBar coin="USDT(테더)" value={50799} maxValue={150000} color="from-blue-500 to-cyan-400" />
-            <CoinUsageBar coin="SOL(솔라나)" value={25567} maxValue={150000} color="from-violet-500 to-purple-400" />
-            <CoinUsageBar coin="KRWT(K-테더)" value={5789} maxValue={150000} color="from-pink-500 to-rose-400" />
+            {coinUsageList.map((coin) => (
+                <CoinUsageBar
+                    key={coin.currency}
+                    coin={getKoreanLabel(coin.currency)}
+                    value={coin.usageAmount * (prices[`KRW-${coin.currency.toUpperCase()}`] ?? 0)}
+                    maxValue={
+                      Math.max(
+                          ...coinUsageList.map(c =>
+                              c.usageAmount * (prices[`KRW-${c.currency.toUpperCase()}`] ?? 0)
+                          ),
+                          1
+                      )
+                    }
+                    color={getColorByCoin(coin.currency)}
+                />
+            ))}
           </div>
         </div>
       </div>
