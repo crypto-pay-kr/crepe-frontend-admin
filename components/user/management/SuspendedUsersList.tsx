@@ -67,10 +67,8 @@ export default function SuspendedUsersList({ onBack }: SuspendedUsersListProps) 
       
       const response = await changeActorStatus(request);
       
-      // 성공 시 목록에서 즉시 제거
       setSuspendedUsers(prev => prev.filter(user => user.id !== id));
     
-      // 현재 페이지가 비어있으면 이전 페이지로 이동
       const remainingUsers = suspendedUsers.filter(user => user.id !== id);
       if (remainingUsers.length === 0 && page > 0) {
         const newPage = page - 1;
