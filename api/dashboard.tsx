@@ -54,7 +54,6 @@ export interface CoinUsageDto {
 }
 export async function fetchAllCoinUsage(): Promise<CoinUsageDto[]> {
     const token = sessionStorage.getItem('accessToken');
-    console.log(token);
     if (!token) throw new Error("인증 토큰이 없습니다");
 
     const res = await fetch(`${API_BASE_URL}/api/admin/coin/usage`, {
