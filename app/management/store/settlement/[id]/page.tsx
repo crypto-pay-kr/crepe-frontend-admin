@@ -1,29 +1,56 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
-import { useState } from "react"
+import {ArrowLeft, ChevronLeft, ChevronRight} from "lucide-react"
+import {useEffect, useState} from "react"
 import { ResetSettlementModal } from "@/components/common/resettlement-model"
+import {fetchSettlementHistories, requestReSettlement, Settlement} from "@/api/payHistoryApi";
+;
+import {useParams} from "next/navigation";
+
 
 export default function SettlementManagement() {
   const [modalOpen, setModalOpen] = useState(false)
-  const [selectedTransactionId, setSelectedTransactionId] = useState("")
+  const [selectedTransactionId, setSelectedTransactionId] = useState(Number)
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [settlement, setSettlements] = useState<Settlement[]>([]);
+  const {id}= useParams();
 
-  const openModal = (transactionId: string) => {
+  const openModal = (transactionId: number) => {
     setSelectedTransactionId(transactionId)
     setModalOpen(true)
   }
+
+  const goToPage = (page: number) => {
+    if (page >= 0 && page < totalPages) {
+      setCurrentPage(page);
+    }
+  };
+  useEffect(() => {
+    if (!id) return;
+    fetchSettlementHistories(Number(id), currentPage, 10, "all")
+        .then(data => {
+          setSettlements(data.content)
+          setTotalPages(data.totalPages)
+        })
+        .catch(err => console.error(err))
+  }, [id, currentPage])
+
 
   const closeModal = () => {
     setModalOpen(false)
   }
 
-  const handleResettle = () => {
-    console.log(`재정산 처리: ${selectedTransactionId}`)
-    // 실제 구현에서는 API 호출 등을 통해 재정산 처리
-    closeModal()
+  const handleResettle = async () => {
+    try {
+      await requestReSettlement(Number(selectedTransactionId));
+      closeModal()
+    } catch (error) {
+      console.error("재정산 실패:", error);
+      alert("재정산 중 오류가 발생했습니다.");
+    }
   }
-
   return (
     <div className="flex h-screen bg-white">
       {/* 메인 콘텐츠 */}
@@ -54,42 +81,81 @@ export default function SettlementManagement() {
                 <tr className="border-b border-gray-200">
                   <th className="py-3 px-4 text-left font-medium text-gray-600">코인 종류</th>
                   <th className="py-3 px-4 text-left font-medium text-gray-600">거래 날짜</th>
-                  <th className="py-3 px-4 text-left font-medium text-gray-600">거래 ID</th>
                   <th className="py-3 px-4 text-left font-medium text-gray-600">상태</th>
                   <th className="py-3 px-4 text-left font-medium text-gray-600">거래 금액</th>
                   <th className="py-3 px-4 text-center font-medium text-gray-600">관리</th>
                 </tr>
               </thead>
               <tbody>
-                {settlements.map((settlement, index) => (
+                {settlement.map((settlement, index) => (
                   <tr key={index} className="border-b border-gray-100">
-                    <td className="py-4 px-4 text-gray-800">{settlement.coinType}</td>
-                    <td className="py-4 px-4 text-gray-800">{settlement.date}</td>
-                    <td className="py-4 px-4 text-gray-800 max-w-xs truncate">
-                      <span title={settlement.transactionId}>{settlement.transactionId}</span>
-                    </td>
+                    <td className="py-4 px-4 text-gray-800">{settlement.currency}</td>
+                    <td className="py-4 px-4 text-gray-800">{new Date(settlement.date).toLocaleString("ko-KR", {
+                      year: "numeric",
+                      month: "2-digit",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false
+                    })}</td>
                     <td className="py-4 px-4">
-                      <div className={`${settlement.status.includes("실패") ? "text-red-500" : "text-green-500"}`}>
+                      <div className={`${settlement.status.includes("PENDING") ? "text-red-500" : "text-green-500"}`}>
                         {settlement.status}
                       </div>
-                      {settlement.errorCode && <div className="text-sm text-gray-500">{settlement.errorCode}</div>}
                     </td>
                     <td className="py-4 px-4 font-medium">{settlement.amount}</td>
                     <td className="py-4 px-4 text-center">
-                      {settlement.status.includes("실패") && (
                         <button
-                          onClick={() => openModal(settlement.transactionId)}
+                          onClick={() => openModal(settlement.id)}
                           className="px-4 py-1 rounded-md text-sm border border-red-500 text-red-500 hover:bg-red-50"
                         >
                           재정산
                         </button>
-                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          {/* 페이지네이션 */}
+          <div className="flex items-center justify-between mt-6">
+            <div className="text-sm text-gray-500">
+              총 <span className="font-medium text-gray-700">{totalPages}</span> 페이지 중 <span
+                className="font-medium text-gray-700">{currentPage + 1}</span> 페이지
+            </div>
+            <div className="flex items-center space-x-1">
+              <button
+                  onClick={() => goToPage(currentPage - 1)}
+                  className="p-2 rounded-md hover:bg-gray-100 text-gray-500 disabled:opacity-50"
+                  disabled={currentPage === 0}
+              >
+                <ChevronLeft size={18}/>
+              </button>
+
+              {[...Array(totalPages)].map((_, i) => (
+                  <button
+                      key={i}
+                      onClick={() => goToPage(i)}
+                      className={`w-8 h-8 rounded-md flex items-center justify-center font-medium ${
+                          i === currentPage
+                              ? 'bg-gradient-to-r from-pink-500 to-rose-400 text-white'
+                              : 'hover:bg-gray-100 text-gray-700'
+                      }`}
+                  >
+                    {i + 1}
+                  </button>
+              ))}
+
+              <button
+                  onClick={() => goToPage(currentPage + 1)}
+                  className="p-2 rounded-md hover:bg-gray-100 text-gray-500 disabled:opacity-50"
+                  disabled={currentPage === totalPages - 1}
+              >
+                <ChevronRight size={18}/>
+              </button>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -98,27 +164,10 @@ export default function SettlementManagement() {
         isOpen={modalOpen}
         onClose={closeModal}
         onConfirm={handleResettle}
-        transactionId={selectedTransactionId}
+
       />
     </div>
   )
 }
 
-const settlements = [
-  {
-    coinType: "리플",
-    date: "2024/12/27",
-    transactionId: "olkdjfierjqnkjkdjf3249udnf982k2nelkn",
-    status: "입금 실패",
-    errorCode: "Error Code: ~~~",
-    amount: "10 XRP",
-  },
-  {
-    coinType: "리플",
-    date: "2024/12/26",
-    transactionId: "olkdjfierjqnkjkdjf3249udnf982k2nelkn",
-    status: "입금",
-    errorCode: "",
-    amount: "10 XRP",
-  },
-]
+

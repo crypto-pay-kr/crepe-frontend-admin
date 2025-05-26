@@ -20,7 +20,7 @@ export interface Payment {
   index: number;
 }
 
-interface PaymentHistoryProps {
+export interface PaymentHistoryProps {
   userId?: string | string[];
 }
 
@@ -128,7 +128,6 @@ export default function PaymentHistory({ userId }: PaymentHistoryProps) {
             </div>
           </div>
 
-          {/* 결제 내역 테이블 - 스크롤 제한 제거 */}
           <div className="border border-gray-200 rounded-lg">
             <table className="w-full border-collapse">
               <thead>
