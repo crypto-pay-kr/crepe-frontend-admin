@@ -1,22 +1,31 @@
+// components/common/suspension-modal.tsx
 "use client"
 
 import { useState } from "react"
 import { X } from "lucide-react"
 import { ConfirmationModal } from "./confirm-modal"
+import { changeActorStatus } from "@/api/adminApi"
+
 
 interface SuspensionModalProps {
   isOpen: boolean
   onClose: () => void
   onConfirm: (reason: string, period: string) => void
   userName: string
+  userId: number // 추가
 }
 
-
-
-export default function SuspensionModal({ isOpen, onClose, onConfirm, userName }: SuspensionModalProps) {
+export default function SuspensionModal({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  userName,
+  userId 
+}: SuspensionModalProps) {
   const [reason, setReason] = useState("")
   const [period, setPeriod] = useState("7일 이용정지")
   const [showConfirmation, setShowConfirmation] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   
   const handlePrimaryAction = () => {
     if (reason.trim()) {
@@ -24,13 +33,59 @@ export default function SuspensionModal({ isOpen, onClose, onConfirm, userName }
     }
   }
   
-  const handleFinalConfirm = () => {
-    onConfirm(reason, period)
-    setShowConfirmation(false)
+  const handleFinalConfirm = async () => {
+    setIsLoading(true)
+    
+    try {
+      // 기간에 따른 매핑
+      const periodMapping = {
+        "7일 이용정지": { type: "TEMPORARY" as const, days: 7 },
+        "14일 이용정지": { type: "TEMPORARY" as const, days: 14 },
+        "21일 이용정지": { type: "TEMPORARY" as const, days: 21 },
+        "영구정지": { type: "PERMANENT" as const }
+      };
+      
+      const suspensionConfig = periodMapping[period as keyof typeof periodMapping];
+      
+      const request = {
+        actorId: userId,
+        action: "SUSPEND" as const,
+        suspensionRequest: {
+          type: suspensionConfig.type,
+          ...(suspensionConfig.type === "TEMPORARY" && { days: suspensionConfig.days }),
+          reason: reason.trim()
+        }
+      };
+      
+      const response = await changeActorStatus(request);
+      
+      // 성공 처리
+      onConfirm(reason, period);
+      setShowConfirmation(false);
+      
+      // 입력 초기화
+      setReason("");
+      setPeriod("7일 이용정지");
+      
+      
+    } catch (error) {
+      console.error('정지 처리 실패:', error);
+      alert('정지 처리 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
   }
   
   const handleCancelConfirmation = () => {
     setShowConfirmation(false)
+  }
+
+  const handleClose = () => {
+    if (!isLoading) {
+      setReason("");
+      setPeriod("7일 이용정지");
+      onClose();
+    }
   }
 
   if (!isOpen) return null
@@ -54,8 +109,9 @@ export default function SuspensionModal({ isOpen, onClose, onConfirm, userName }
             <h2 className="text-lg font-semibold text-gray-800">유저 이용정지</h2>
           </div>
           <button 
-            onClick={onClose} 
+            onClick={handleClose} 
             className="text-gray-400 hover:text-gray-600 transition-colors rounded-full p-1 hover:bg-gray-100"
+            disabled={isLoading}
           >
             <X size={20} />
           </button>
@@ -71,6 +127,8 @@ export default function SuspensionModal({ isOpen, onClose, onConfirm, userName }
                 onChange={(e) => setReason(e.target.value)}
                 className="w-full border border-gray-200 rounded-lg p-3 pt-4 h-28 focus:ring-2 focus:ring-pink-200 focus:border-pink-300 focus:outline-none transition-all resize-none"
                 placeholder="이용정지 사유를 입력해주세요"
+                disabled={isLoading}
+                maxLength={200}
               />
               <div className="absolute bottom-3 right-3 flex items-center text-xs text-gray-400">
                 <span>{reason.length}</span>
@@ -106,6 +164,7 @@ export default function SuspensionModal({ isOpen, onClose, onConfirm, userName }
                       checked={period === option.value}
                       onChange={(e) => setPeriod(e.target.value)}
                       className="sr-only"
+                      disabled={isLoading}
                     />
                     <div className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
                       period === option.value 
@@ -121,7 +180,6 @@ export default function SuspensionModal({ isOpen, onClose, onConfirm, userName }
                     <span className={`text-sm ${period === option.value ? "text-gray-900 font-medium" : "text-gray-600"}`}>
                       {option.label}
                     </span>
-
                   </div>
                 </label>
               ))}
@@ -131,22 +189,23 @@ export default function SuspensionModal({ isOpen, onClose, onConfirm, userName }
           {/* 버튼 그룹 */}
           <div className="flex gap-3 justify-end pt-2">
             <button 
-              onClick={onClose} 
+              onClick={handleClose} 
               className="px-5 py-2.5 border border-gray-200 rounded-lg text-gray-700 font-medium text-sm hover:bg-gray-50 transition-colors"
+              disabled={isLoading}
             >
               취소
             </button>
             <button
-              onClick={() => handlePrimaryAction()}
+              onClick={handlePrimaryAction}
               className={`px-5 py-2.5 text-white rounded-lg font-medium text-sm shadow-sm transition-all flex items-center gap-2 ${
-                !reason.trim() 
+                !reason.trim() || isLoading
                   ? "bg-gray-300 cursor-not-allowed" 
                   : "bg-pink-500 hover:bg-pink-600 hover:shadow"
               }`}
-              disabled={!reason.trim()}
+              disabled={!reason.trim() || isLoading}
             >
-              <span>확인</span>
-              {!reason.trim() ? null : (
+              <span>{isLoading ? "처리중..." : "확인"}</span>
+              {!reason.trim() || isLoading ? null : (
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
@@ -156,7 +215,6 @@ export default function SuspensionModal({ isOpen, onClose, onConfirm, userName }
         </div>
       </div>
       
-      {/* 재확인 모달 컴포넌트 사용 */}
       <ConfirmationModal 
         isOpen={showConfirmation}
         onClose={handleCancelConfirmation}

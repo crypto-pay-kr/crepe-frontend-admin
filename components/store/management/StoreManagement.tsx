@@ -3,15 +3,7 @@ import { Search, Bell, ChevronLeft, ChevronRight, Filter, Wallet, BarChart4, Cre
 import Link from "next/link"
 import {useEffect, useState} from "react"
 import SuspensionModal from "@/components/common/suspension-modal"
-import {fetchActorsByRole, GetActorInfoResponse} from "@/api/ActorApi"; // 필요하다면 import
-
-// 가맹점 타입 정의
-interface Merchant {
-  id: string;
-  storeName: string; // 가게명 필드 추가
-  username: string;
-  phone: string;
-}
+import {fetchActorsByRole, GetActorInfoResponse} from "@/api/ActorApi";
 
 interface ModernMerchantManagementProps {
   onShowSuspendedList: () => void;
@@ -19,31 +11,40 @@ interface ModernMerchantManagementProps {
 
 export default function ModernMerchantManagement({ onShowSuspendedList }: ModernMerchantManagementProps) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null);
+  const [selectedMerchant, setSelectedMerchant] = useState<{ 
+    id: number; 
+    storeName: string; 
+    username: string; 
+    phone: string 
+  } | null>(null);
   const [actors, setActors] = useState<GetActorInfoResponse[]>([]);
   const [role, setRole] = useState("SELLER");
   const [page, setPage] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
-
-
-
-
-
-
-  const onPageChange =async (page: number) => {
-    if (page >= 0 && page < totalPages) {
-      setCurrentPage(page);
-      await fetchActorsByRole(role, page);
+  const onPageChange = async (newPage: number) => {
+    if (newPage >= 0 && newPage < totalPages) {
+      setCurrentPage(newPage);
+      setPage(newPage);
+      
+      try {
+        const result = await fetchActorsByRole(role, "ACTIVE", newPage);
+        setActors(result.content);
+        setTotalPages(result.totalPages);
+      } catch (error) {
+        console.error(error);
+      }
     }
   };
 
   useEffect(() => {
     const loadActors = async () => {
       try {
-        const result = await fetchActorsByRole(role, page);
+        const result = await fetchActorsByRole(role, "ACTIVE", page); // ACTIVE만 조회
         setActors(result.content);
+        setTotalPages(result.totalPages);
+        setCurrentPage(page);
       } catch (error) {
         console.error(error);
       }
@@ -52,17 +53,34 @@ export default function ModernMerchantManagement({ onShowSuspendedList }: Modern
     loadActors();
   }, [role, page]);
 
-
-  const handleSuspend = (merchant: Merchant) => {
-    setSelectedMerchant(merchant);
+  // 가맹점 정지 버튼 클릭 핸들러
+  const handleSuspend = (actorId: number, actorName: string, actorEmail: string, actorPhone: string) => {
+    setSelectedMerchant({
+      id: actorId,
+      storeName: actorName, // 가게명으로 사용
+      username: actorEmail,
+      phone: actorPhone
+    });
     setModalOpen(true);
   };
 
-
-  const handleConfirmSuspension = (reason: string, period: string) => {
-    // 여기서 API 호출 등 실제 이용정지 처리를 구현할 수 있습니다
+  const handleConfirmSuspension = async (reason: string, period: string) => {
     console.log(`가맹점 ${selectedMerchant?.storeName}(${selectedMerchant?.id})를 ${period}로 정지: ${reason}`);
     setModalOpen(false);
+    
+    // 정지 후 목록에서 해당 가맹점 즉시 제거
+    if (selectedMerchant) {
+      setActors(prev => prev.filter(actor => actor.actorId !== selectedMerchant.id));
+    }
+    
+    // 목록 새로고침
+    try {
+      const result = await fetchActorsByRole(role, "ACTIVE", currentPage);
+      setActors(result.content);
+      setTotalPages(result.totalPages);
+    } catch (error) {
+      console.error('목록 새로고침 실패:', error);
+    }
   };
 
   return (
@@ -119,15 +137,15 @@ export default function ModernMerchantManagement({ onShowSuspendedList }: Modern
               <tbody>
                 {actors.map((actor, index) => (
                   <tr key={actor.actorId} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
-                    <td className="py-4 px-4 text-gray-800">{index+1}</td>
+                    <td className="py-4 px-4 text-gray-800">{(currentPage * 10) + index + 1}</td>
                     <td className="py-4 px-4 font-medium text-gray-800">
                       <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center text-pink-600 font-medium">
-                            <Store size={14} />
-                          </div>
-                          <span className="text-gray-600">{actor.actorName}</span>
+                        <div className="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center text-pink-600 font-medium">
+                          <Store size={14} />
                         </div>
-                        </td>
+                        <span className="text-gray-600">{actor.actorName}</span>
+                      </div>
+                    </td>
                     <td className="py-4 px-4">
                       <span className="text-gray-600">{actor.actorEmail}</span>
                     </td>
@@ -136,7 +154,12 @@ export default function ModernMerchantManagement({ onShowSuspendedList }: Modern
                       <div className="flex justify-end gap-2">
                         <button
                           className="px-3 py-1.5 rounded-md text-sm font-medium border border-pink-500 text-pink-500 hover:bg-pink-50 transition-all flex items-center cursor-pointer"
-                          // onClick={() => handleSuspend(merchant)}
+                          onClick={() => handleSuspend(
+                            actor.actorId, 
+                            actor.actorName, 
+                            actor.actorEmail, 
+                            actor.actorPhoneNum
+                          )}
                         >
                           <Ban className="w-4 h-4 mr-2" />
                           가맹점 정지
@@ -169,57 +192,56 @@ export default function ModernMerchantManagement({ onShowSuspendedList }: Modern
               </tbody>
             </table>
           </div>
+          
           {/* 페이지네이션 */}
           {totalPages > 1 && (
-              <div className="flex flex-col items-center mt-6 gap-4">
-                <nav className="flex items-center justify-center gap-1">
+            <div className="flex flex-col items-center mt-6 gap-4">
+              <nav className="flex items-center justify-center gap-1">
+                {/* 이전 버튼 */}
+                {currentPage > 0 && (
+                  <button
+                    onClick={() => onPageChange(currentPage - 1)}
+                    className="w-9 h-9 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 transition-colors"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                )}
 
-                  {/* 이전 버튼 */}
-                  {currentPage > 0 && (
-                      <button
-                          onClick={() => onPageChange(currentPage - 1)}
-                          className="w-9 h-9 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 transition-colors"
-                      >
-                        <ChevronLeft size={18} />
-                      </button>
-                  )}
+                {/* 페이지 버튼들 */}
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => onPageChange(i)}
+                    className={`w-9 h-9 flex items-center justify-center rounded-md transition-colors font-medium ${
+                      i === currentPage ? 'bg-pink-500 text-white' : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
 
-                  {/* 페이지 버튼들 */}
-                  {Array.from({ length: totalPages }, (_, i) => (
-                      <button
-                          key={i}
-                          onClick={() => onPageChange(i)}
-                          className={`w-9 h-9 flex items-center justify-center rounded-md transition-colors font-medium ${
-                              i === currentPage ? 'bg-pink-500 text-white' : 'text-gray-600 hover:bg-gray-100'
-                          }`}
-                      >
-                        {i + 1}
-                      </button>
-                  ))}
-
-                  {/* 다음 버튼 */}
-                  {currentPage < totalPages - 1 && (
-                      <button
-                          onClick={() => onPageChange(currentPage + 1)}
-                          className="w-9 h-9 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 transition-colors"
-                      >
-                        <ChevronRight size={18} />
-                      </button>
-                  )}
-                </nav>
-              </div>
+                {/* 다음 버튼 */}
+                {currentPage < totalPages - 1 && (
+                  <button
+                    onClick={() => onPageChange(currentPage + 1)}
+                    className="w-9 h-9 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 transition-colors"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                )}
+              </nav>
+            </div>
           )}
         </div>
       </div>
 
-      {modalOpen && (
-        <SuspensionModal
-          isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
-          onConfirm={handleConfirmSuspension}
-          userName={selectedMerchant?.storeName || ""}
-        />
-      )}
+      <SuspensionModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onConfirm={handleConfirmSuspension}
+        userName={selectedMerchant?.storeName || ""}
+        userId={selectedMerchant?.id || 0}
+      />
     </div>
   )
 }

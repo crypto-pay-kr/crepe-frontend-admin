@@ -11,25 +11,41 @@ interface ModernUserManagementProps {
 
 export default function ModernUserManagement({ onShowSuspendedList }: ModernUserManagementProps) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<{ id: number; nickname: string; username: string; phone: string } | null>(null);
+  const [selectedUser, setSelectedUser] = useState<{ 
+    id: number; 
+    nickname: string; 
+    username: string; 
+    phone: string 
+  } | null>(null);
   const [actors, setActors] = useState<GetActorInfoResponse[]>([]);
   const [role, setRole] = useState("USER");
+  const [status, setStatus] = useState("ACTIVE"); 
   const [page, setPage] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
-  const onPageChange =async (page: number) => {
-    if (page >= 0 && page < totalPages) {
-      setCurrentPage(page);
-      await fetchActorsByRole(role, page);
+  const onPageChange = async (newPage: number) => {
+    if (newPage >= 0 && newPage < totalPages) {
+      setCurrentPage(newPage);
+      setPage(newPage); 
+      
+      try {
+        const result = await fetchActorsByRole(role, status, newPage);
+        setActors(result.content);
+        setTotalPages(result.totalPages);
+      } catch (error) {
+        console.error(error);
+      }
     }
   };
 
   useEffect(() => {
     const loadActors = async () => {
       try {
-        const result = await fetchActorsByRole(role, page);
+        const result = await fetchActorsByRole(role, status, page); 
         setActors(result.content);
+        setTotalPages(result.totalPages);
+        setCurrentPage(page);
       } catch (error) {
         console.error(error);
       }
@@ -38,15 +54,32 @@ export default function ModernUserManagement({ onShowSuspendedList }: ModernUser
     loadActors();
   }, [role, page]);
 
-  const handleSuspend = (user: { id: number; nickname: string; username: string; phone: string }) => {
-    setSelectedUser(user);
+
+  const handleSuspend = (actorId: number, actorName: string, actorEmail: string, actorPhone: string) => {
+    setSelectedUser({
+      id: actorId,
+      nickname: actorName,
+      username: actorEmail,
+      phone: actorPhone
+    });
     setModalOpen(true);
   };
-  
-  const handleConfirmSuspension = (reason: string, period: string) => {
-    // 여기서 API 호출 등 실제 이용정지 처리를 구현할 수 있습니다
+
+  const handleConfirmSuspension = async (reason: string, period: string) => {
     console.log(`사용자 ${selectedUser?.nickname}(${selectedUser?.username})를 ${period}로 정지: ${reason}`);
     setModalOpen(false);
+    
+    if (selectedUser) {
+      setActors(prev => prev.filter(actor => actor.actorId !== selectedUser.id));
+    }
+    
+    try {
+      const result = await fetchActorsByRole(role, status, currentPage); // ACTIVE만 조회
+      setActors(result.content);
+      setTotalPages(result.totalPages);
+    } catch (error) {
+      console.error('목록 새로고침 실패:', error);
+    }
   };
 
   return (
@@ -101,9 +134,9 @@ export default function ModernUserManagement({ onShowSuspendedList }: ModernUser
                 </tr>
               </thead>
               <tbody>
-                {actors.map((actor,index) => (
+                {actors.map((actor, index) => (
                   <tr key={actor.actorId} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
-                    <td className="py-4 px-4 text-gray-800">{index+1}</td>
+                    <td className="py-4 px-4 text-gray-800">{(currentPage * 10) + index + 1}</td>
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center text-pink-600 font-medium">
@@ -116,40 +149,44 @@ export default function ModernUserManagement({ onShowSuspendedList }: ModernUser
                     <td className="py-4 px-4 text-gray-600">{actor.actorPhoneNum}</td>
                     <td className="py-4 px-4">
                       <div className="flex justify-end gap-2">
-                      <button
-                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center ${
-                          actor.actorId === 10 
-                            ? "bg-pink-100 text-pink-600 cursor-not-allowed" 
-                            : "border border-pink-500 text-pink-500 hover:bg-pink-50 cursor-pointer"
-                        }`}
-                        // onClick={() => actor.actorId!== 10 && handleSuspend(actor.actorId)}
-                      >
-                        <Ban className="w-4 h-4 mr-2" />
-                        {"이용정지"}
-                      </button>
+                        <button
+                          className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center ${
+                            actor.actorId === 10 
+                              ? "bg-pink-100 text-pink-600 cursor-not-allowed" 
+                              : "border border-pink-500 text-pink-500 hover:bg-pink-50 cursor-pointer"
+                          }`}
+                          onClick={() => actor.actorId !== 10 && handleSuspend(
+                            actor.actorId, 
+                            actor.actorName, 
+                            actor.actorEmail, 
+                            actor.actorPhoneNum
+                          )}
+                          disabled={actor.actorId === 10}
+                        >
+                          <Ban className="w-4 h-4 mr-2" />
+                          이용정지
+                        </button>
 
-                      <Link href={`/management/user/wallet/${actor.actorId}`}>
-                        <button className="px-3 py-2 rounded-md text-sm font-medium border border-gray-400 text-gray-600 hover:bg-gray-50 hover:border-gray-500 transition-all flex items-center cursor-pointer">
-                          <Wallet className="w-4 h-4 mr-2" />
-                          계좌 관리
-                        </button>
-                    </Link>
-                    
-                      <Link href={`/management/user/transfer/${actor.actorId}`}>
-                        <button className="px-3 py-2 rounded-md text-sm font-medium border border-gray-400 text-gray-600 hover:bg-gray-50 hover:border-gray-500 transition-all flex items-center cursor-pointer">
-                          <BarChart4 className="w-4 h-4 mr-2" />
-                          이체 내역
-                        </button>
-                      </Link>
+                        <Link href={`/management/user/wallet/${actor.actorId}`}>
+                          <button className="px-3 py-2 rounded-md text-sm font-medium border border-gray-400 text-gray-600 hover:bg-gray-50 hover:border-gray-500 transition-all flex items-center cursor-pointer">
+                            <Wallet className="w-4 h-4 mr-2" />
+                            계좌 관리
+                          </button>
+                        </Link>
+                      
+                        <Link href={`/management/user/transfer/${actor.actorId}`}>
+                          <button className="px-3 py-2 rounded-md text-sm font-medium border border-gray-400 text-gray-600 hover:bg-gray-50 hover:border-gray-500 transition-all flex items-center cursor-pointer">
+                            <BarChart4 className="w-4 h-4 mr-2" />
+                            이체 내역
+                          </button>
+                        </Link>
 
-                      {/* 결제 내역 버튼 - 보라색 */}
-                      <Link href={`/management/user/payment/${actor.actorId}`}>
-                        <button className="px-3 py-2 rounded-md text-sm font-medium border border-gray-400 text-gray-600 hover:bg-gray-50 hover:border-gray-500 transition-all flex items-center cursor-pointer">
-                          <CreditCard className="w-4 h-4 mr-2" />
-                          결제 내역
-                        </button>
-                      </Link>
-                        
+                        <Link href={`/management/user/payment/${actor.actorId}`}>
+                          <button className="px-3 py-2 rounded-md text-sm font-medium border border-gray-400 text-gray-600 hover:bg-gray-50 hover:border-gray-500 transition-all flex items-center cursor-pointer">
+                            <CreditCard className="w-4 h-4 mr-2" />
+                            결제 내역
+                          </button>
+                        </Link>
                       </div>
                     </td>
                   </tr>
@@ -158,12 +195,10 @@ export default function ModernUserManagement({ onShowSuspendedList }: ModernUser
             </table>
           </div>
 
-
           {/* 페이지네이션 */}
           {totalPages > 1 && (
               <div className="flex flex-col items-center mt-6 gap-4">
                 <nav className="flex items-center justify-center gap-1">
-
                   {/* 이전 버튼 */}
                   {currentPage > 0 && (
                       <button
@@ -201,11 +236,13 @@ export default function ModernUserManagement({ onShowSuspendedList }: ModernUser
           )}
         </div>
       </div>
-        <SuspensionModal
+      
+      <SuspensionModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         onConfirm={handleConfirmSuspension}
-        userName={selectedUser?.username || ""}
+        userName={selectedUser?.nickname || ""}
+        userId={selectedUser?.id || 0}
       />
     </div>
   )
