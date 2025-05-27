@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import {ArrowLeft, ChevronLeft, ChevronRight} from "lucide-react"
 import {useParams} from "next/navigation";
 import {useEffect, useState} from "react";
 import {fetchUserTransactionHistory} from "@/api/ActorApi";
@@ -32,16 +32,15 @@ export default function TransferHistory({
 
   const { id } = useParams();
   const [transactions, setTransactions] = useState<GetTransactionHistoryResponse[]>([]);
-  const [page, setPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-
+  const [currentPage, setCurrentPage] = useState(0); // 0부터 시작
+  const [totalPages, setTotalPages] = useState(1);
   useEffect(() => {
     console.log("actorId 확인:", id);
     const load = async () => {
       if (!id) return;
 
       try {
-        const data = await fetchUserTransactionHistory(Number(id),0,5);
+        const data = await fetchUserTransactionHistory(Number(id),currentPage,10);
 
         setTransactions(data.content);
         setTotalPages(data.totalPages);
@@ -51,8 +50,14 @@ export default function TransferHistory({
     };
 
     load();
-  }, [id, page]);
+  }, [id, currentPage]);
 
+
+  const goToPage = (page: number) => {
+    if (page >= 0 && page < totalPages) {
+      setCurrentPage(page);
+    }
+  };
 
 
   
@@ -65,8 +70,8 @@ export default function TransferHistory({
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <Link 
-                  href={backPath} 
+                <Link
+                  href={backPath}
                   className={`flex items-center text-gray-600 hover:text-pink-600 transition-colors mb-2`}
                 >
                   <ArrowLeft size={18} className="mr-2" />
@@ -76,7 +81,7 @@ export default function TransferHistory({
               </div>
             </div>
           </div>
-          
+
           {/* 이체 내역 테이블 */}
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
@@ -114,11 +119,49 @@ export default function TransferHistory({
                     <td className="py-4 px-4">{transfer.transactionType}</td>
 
 
-                      <td className="py-4 px-4 font-medium">{transfer.amount}</td>
+                    <td className="py-4 px-4 font-medium">{transfer.amount}</td>
                   </tr>
-                ))}
+              ))}
               </tbody>
             </table>
+          </div>
+          {/* 페이지네이션 */}
+          <div className="flex items-center justify-between mt-6">
+            <div className="text-sm text-gray-500">
+              총 <span className="font-medium text-gray-700">{totalPages}</span> 페이지 중 <span
+                className="font-medium text-gray-700">{currentPage + 1}</span> 페이지
+            </div>
+            <div className="flex items-center space-x-1">
+              <button
+                  onClick={() => goToPage(currentPage - 1)}
+                  className="p-2 rounded-md hover:bg-gray-100 text-gray-500 disabled:opacity-50"
+                  disabled={currentPage === 0}
+              >
+                <ChevronLeft size={18}/>
+              </button>
+
+              {[...Array(totalPages)].map((_, i) => (
+                  <button
+                      key={i}
+                      onClick={() => goToPage(i)}
+                      className={`w-8 h-8 rounded-md flex items-center justify-center font-medium ${
+                          i === currentPage
+                              ? 'bg-gradient-to-r from-pink-500 to-rose-400 text-white'
+                              : 'hover:bg-gray-100 text-gray-700'
+                      }`}
+                  >
+                    {i + 1}
+                  </button>
+              ))}
+
+              <button
+                  onClick={() => goToPage(currentPage + 1)}
+                  className="p-2 rounded-md hover:bg-gray-100 text-gray-500 disabled:opacity-50"
+                  disabled={currentPage === totalPages - 1}
+              >
+                <ChevronRight size={18}/>
+              </button>
+            </div>
           </div>
         </div>
       </div>
