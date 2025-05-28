@@ -17,6 +17,9 @@ interface AuthContextValue {
   login: (loginId: string, password: string, captchaKey?: string, captchaValue?: string) => Promise<void>;
   logout: () => void;
   checkAuth: () => Promise<boolean>;
+  reissueToken: () => Promise<boolean>; // 추가
+  authenticatedFetch: (url: string, options?: RequestInit) => Promise<Response>; // 추가
+  manualReconnectSSE: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -29,18 +32,154 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const reconnectAttempts = useRef<number>(0);
   const maxReconnectAttempts = 5;
 
-  // SSE 연결 설정 (GET 방식)
+  // 토큰 재발행 함수
+  const reissueToken = async (): Promise<boolean> => {
+    try {
+      const refreshToken = sessionStorage.getItem('refreshToken');
+      
+      if (!refreshToken) {
+        console.log('❌ Admin 리프레시 토큰이 없습니다.');
+        logout();
+        return false;
+      }
+
+      console.log('🔄 Admin 토큰 재발행 요청 중...');
+
+      const response = await axios.post(`${API_BASE_URL}/api/auth/reissue`, {
+        refreshToken,
+        userRole: 'ADMIN' // 백엔드에서 userRole을 요구할 수 있음
+      });
+
+      if (response.data.success && response.data.data) {
+        console.log('✅ Admin 토큰 재발행 성공');
+        
+        // 새 토큰들 저장
+        sessionStorage.setItem('accessToken', response.data.data.accessToken);
+        sessionStorage.setItem('refreshToken', response.data.data.refreshToken);
+        
+        // SSE 연결도 새 토큰으로 재설정
+        setTimeout(() => {
+          setupSSEConnection();
+        }, 100);
+        
+        return true;
+      } else {
+        throw new Error(response.data.message || 'Admin 토큰 재발행 실패');
+      }
+    } catch (error) {
+      console.error('❌ Admin 토큰 재발행 오류:', error);
+      
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        console.log('🔄 리프레시 토큰도 만료됨, 로그아웃 처리');
+        logout();
+      }
+      
+      return false;
+    }
+  };
+
+  // API 요청을 위한 fetch 래퍼 함수 (자동 토큰 재발행)
+  const authenticatedFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
+    const accessToken = sessionStorage.getItem('accessToken');
+    
+    // 헤더에 토큰 추가
+    const headers = {
+      ...options.headers,
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    };
+
+    let response = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    // 401 오류 시 토큰 재발행 시도
+    if (response.status === 401) {
+      console.log('🔄 Admin 401 오류 발생, 토큰 재발행 시도');
+      
+      const reissueSuccess = await reissueToken();
+      
+      if (reissueSuccess) {
+        // 재발행 성공 시 원래 요청 재시도
+        const newAccessToken = sessionStorage.getItem('accessToken');
+        const retryHeaders = {
+          ...options.headers,
+          'Authorization': `Bearer ${newAccessToken}`,
+          'Content-Type': 'application/json',
+        };
+        
+        response = await fetch(url, {
+          ...options,
+          headers: retryHeaders,
+        });
+        
+        console.log('✅ Admin 토큰 재발행 후 요청 재시도 성공');
+      } else {
+        console.log('❌ Admin 토큰 재발행 실패, 로그인 필요');
+      }
+    }
+
+    return response;
+  };
+
+  // Axios 인터셉터 설정 (기존 axios 사용하는 경우)
+  useEffect(() => {
+    // 요청 인터셉터 - 토큰 자동 첨부
+    const requestInterceptor = axios.interceptors.request.use(
+      (config) => {
+        const accessToken = sessionStorage.getItem('accessToken');
+        if (accessToken) {
+          config.headers.Authorization = `Bearer ${accessToken}`;
+        }
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
+
+    // 응답 인터셉터 - 401 시 자동 토큰 재발행
+    const responseInterceptor = axios.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest = error.config;
+
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+          
+          console.log('🔄 Admin Axios 401 오류, 토큰 재발행 시도');
+          const reissueSuccess = await reissueToken();
+          
+          if (reissueSuccess) {
+            const newAccessToken = sessionStorage.getItem('accessToken');
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            return axios(originalRequest);
+          }
+        }
+        
+        return Promise.reject(error);
+      }
+    );
+
+    // 컴포넌트 언마운트 시 인터셉터 제거
+    return () => {
+      axios.interceptors.request.eject(requestInterceptor);
+      axios.interceptors.response.eject(responseInterceptor);
+    };
+  }, []);
+
+  // SSE 연결 설정
   const setupSSEConnection = () => {
     const accessToken = sessionStorage.getItem('accessToken');
     if (!accessToken) {
-      console.log('토큰이 없어서 SSE 연결을 건너뜁니다.');
+      console.log('🔐 Admin 토큰이 없어서 SSE 연결을 건너뜁니다.');
       return;
     }
 
     // 기존 연결이 있다면 해제
     if (eventSourceRef.current) {
-      console.log('기존 SSE 연결을 해제합니다.');
+      console.log('🔄 Admin 기존 SSE 연결을 해제합니다.');
       eventSourceRef.current.close();
+      eventSourceRef.current = null;
     }
 
     // 기존 재연결 타이머 취소
@@ -50,86 +189,53 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      console.log('SSE 연결 시도 중...', `${API_BASE_URL}/api/auth/events`);
-      console.log('토큰 (앞 50자):', accessToken.substring(0, 50) + '...');
+      console.log('🔗 Admin SSE 연결 시도 중...', `${API_BASE_URL}/api/auth/events`);
+      console.log('🔑 Admin 토큰 (앞 50자):', accessToken.substring(0, 50) + '...');
       
-      // 토큰을 쿼리 파라미터로 전달 (GET 방식)
       const sseUrl = `${API_BASE_URL}/api/auth/events?token=${encodeURIComponent(accessToken)}`;
-      console.log('SSE URL 길이:', sseUrl.length);
+      console.log('📏 Admin SSE URL:', sseUrl);
       
-      // 브라우저 네트워크 요청 확인을 위한 추가 로그
-      console.log('💡 개발자 도구 > Network 탭에서 /api/auth/events 요청을 확인해보세요!');
-      
+      let connectionStartTime = Date.now();
       const eventSource = new EventSource(sseUrl);
 
       eventSource.onopen = () => {
-        console.log('✅ SSE 연결이 성공적으로 열렸습니다.');
-        console.log('EventSource readyState:', eventSource.readyState); // 1이어야 함
-        reconnectAttempts.current = 0; // 성공 시 재연결 카운터 리셋
+        const connectionTime = Date.now() - connectionStartTime;
+        console.log(`✅ Admin SSE 연결이 성공적으로 열렸습니다. (${connectionTime}ms)`);
+        reconnectAttempts.current = 0;
       };
 
-      // 연결 확인 메시지 (선택적)
+      // 연결 확인 및 Keep-alive
       eventSource.addEventListener('connected', (event) => {
-        console.log('✅ SSE 연결 확인:', event.data);
+        console.log('✅ Admin SSE 연결 확인:', event.data);
       });
 
-      // Keep-alive 메시지 처리 (선택적)
       eventSource.addEventListener('keepalive', (event) => {
-        console.log('💓 Keep-alive:', event.data);
+        console.log('💓 Admin Keep-alive:', event.data);
       });
-
-      // 모든 메시지 수신 (디버깅용)
-      eventSource.onmessage = (event) => {
-        console.log('📨 일반 SSE 메시지 수신:', event);
-        console.log('   - data:', event.data);
-        console.log('   - type:', event.type);
-        console.log('   - lastEventId:', event.lastEventId);
-      };
 
       // 중복 로그인 알림 처리
       eventSource.addEventListener('duplicate-login', (event) => {
-        console.log('🚨 중복 로그인 감지:', event.data);
-        
-        // 사용자에게 알림 표시
+        console.log('🚨 Admin 중복 로그인 감지:', event.data);
         alert('다른 기기에서 로그인되어 현재 세션이 종료됩니다.');
-        
-        // 자동 로그아웃 처리
         handleForceLogout();
       });
 
+      // 에러 처리
       eventSource.onerror = (error) => {
-        console.error('❌ SSE 연결 오류:', error);
-        console.log('EventSource readyState:', eventSource.readyState);
-        console.log('EventSource url:', eventSource.url);
+        const connectionTime = Date.now() - connectionStartTime;
+        console.error('❌ Admin SSE 연결 오류:', error);
+        console.log(`⏱️ 연결 시도 시간: ${connectionTime}ms`);
         
-        // readyState 설명:
-        // 0 = CONNECTING, 1 = OPEN, 2 = CLOSED
+        if (connectionTime < 100) {
+          console.log('⚠️ 빠른 실패 - CORS 또는 네트워크 문제 가능성');
+        }
+        
         switch(eventSource.readyState) {
-          case EventSource.CONNECTING:
-            console.log('🔄 SSE 연결 시도 중...');
-            break;
-          case EventSource.OPEN:
-            console.log('✅ SSE 연결이 열려있음');
-            break;
           case EventSource.CLOSED:
-            console.log('❌ SSE 연결이 닫혔습니다.');
-            
-            // 자동 재연결 시도 (최대 5회)
-            if (reconnectAttempts.current < maxReconnectAttempts) {
-              reconnectAttempts.current++;
-              const delay = Math.min(1000 * reconnectAttempts.current, 10000); // 최대 10초
-              
-              console.log(`🔄 ${delay/1000}초 후 재연결 시도 (${reconnectAttempts.current}/${maxReconnectAttempts})`);
-              
-              reconnectTimeoutRef.current = setTimeout(() => {
-                setupSSEConnection();
-              }, delay);
-            } else {
-              console.log('❌ 최대 재연결 시도 횟수 초과');
-            }
+            console.log('❌ Admin SSE 연결이 닫혔습니다.');
+            // SSE 연결 실패 시에도 토큰 재발행 시도
+            checkTokenAndReconnect();
             break;
-          default:
-            console.log('❓ 알 수 없는 상태:', eventSource.readyState);
         }
         
         eventSource.close();
@@ -138,29 +244,70 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       eventSourceRef.current = eventSource;
 
     } catch (error) {
-      console.error('❌ SSE 연결 설정 실패:', error);
+      console.error('❌ Admin SSE 연결 설정 실패:', error);
     }
+  };
+
+  // 토큰 확인 후 재연결 (SSE 전용)
+  const checkTokenAndReconnect = async () => {
+    const accessToken = sessionStorage.getItem('accessToken');
+    
+    if (!accessToken) {
+      console.log('❌ Admin 재연결 시도 중 토큰이 없음');
+      return;
+    }
+
+    // SSE 연결 실패 시 토큰 재발행 시도
+    console.log('🔍 Admin SSE 연결 실패, 토큰 재발행 시도');
+    const reissueSuccess = await reissueToken();
+    
+    if (reissueSuccess) {
+      console.log('✅ Admin 토큰 재발행 성공, SSE 재연결');
+      // setupSSEConnection은 reissueToken 내부에서 호출됨
+    } else {
+      // 토큰 재발행 실패 시 일반 재연결 시도
+      attemptReconnection();
+    }
+  };
+
+  // 재연결 시도 로직
+  const attemptReconnection = () => {
+    if (reconnectAttempts.current < maxReconnectAttempts) {
+      reconnectAttempts.current++;
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
+      
+      console.log(`🔄 ${delay/1000}초 후 Admin SSE 재연결 시도 (${reconnectAttempts.current}/${maxReconnectAttempts})`);
+      
+      reconnectTimeoutRef.current = setTimeout(() => {
+        setupSSEConnection();
+      }, delay);
+    } else {
+      console.log('❌ Admin SSE 최대 재연결 시도 횟수 초과');
+    }
+  };
+
+  // 수동 SSE 재연결
+  const manualReconnectSSE = () => {
+    console.log('🔧 수동 Admin SSE 재연결 시도');
+    reconnectAttempts.current = 0;
+    setupSSEConnection();
   };
 
   // 강제 로그아웃 처리
   const handleForceLogout = () => {
-    console.log('🔄 강제 로그아웃 처리 중...');
+    console.log('🔄 Admin 강제 로그아웃 처리 중...');
     
-    // SSE 연결 해제
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
     
-    // 토큰 제거 및 상태 업데이트
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('accessToken');
       sessionStorage.removeItem('refreshToken');
     }
     setIsAuthenticated(false);
     
-    // 로그인 페이지로 리다이렉트
-    console.log('🔄 로그인 페이지로 리다이렉트...');
     window.location.href = '/login';
   };
 
@@ -171,25 +318,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const accessToken = sessionStorage.getItem('accessToken');
 
         if (accessToken) {
-          console.log('💾 저장된 토큰 발견, 인증 상태 설정 중...');
+          console.log('💾 Admin 저장된 토큰 발견, 인증 상태 설정 중...');
           setIsAuthenticated(true);
           
-          // SSE 연결 설정
-          setupSSEConnection();
+          setTimeout(() => {
+            setupSSEConnection();
+          }, 100);
 
-          // 토큰 유효성 검증 (선택적)
           try {
             await checkAuth();
           } catch (error) {
-            console.error('토큰 검증 실패, 로그아웃 처리:', error);
-            logout();
+            console.error('Admin 토큰 검증 실패, 토큰 재발행 시도:', error);
+            const reissueSuccess = await reissueToken();
+            if (!reissueSuccess) {
+              logout();
+            }
           }
         } else {
-          console.log('저장된 토큰이 없습니다.');
+          console.log('❌ Admin 저장된 토큰이 없습니다.');
           setIsAuthenticated(false);
         }
       } catch (error) {
-        console.error("초기 인증 확인 에러:", error);
+        console.error("Admin 초기 인증 확인 에러:", error);
         setIsAuthenticated(false);
       } finally {
         setIsLoading(false); 
@@ -198,9 +348,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     checkLoginStatus();
 
-    // 컴포넌트 언마운트 시 SSE 연결 해제
     return () => {
-      console.log('🧹 AuthProvider 언마운트, SSE 연결 정리 중...');
+      console.log('🧹 Admin AuthProvider 언마운트, 정리 중...');
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
       }
@@ -212,7 +361,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (loginId: string, password: string, captchaKey?: string, captchaValue?: string) => {
     try {
-      console.log('🔐 로그인 시도 중...');
+      console.log('🔐 Admin 로그인 시도 중...');
       
       const response = await axios.post<LoginResponse>(`${API_BASE_URL}/api/admin/login`, {
         email: loginId, 
@@ -230,15 +379,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         sessionStorage.setItem('refreshToken', refreshToken);
         setIsAuthenticated(true);
         
-        // 로그인 성공 후 SSE 연결 설정
-        setupSSEConnection();
+        setTimeout(() => {
+          setupSSEConnection();
+        }, 500);
         
         return;
       } else {
         throw new Error('관리자 권한이 없습니다.');
       }
     } catch (error) {
-      console.error("❌ 로그인 에러:", error);
+      console.error("❌ Admin 로그인 에러:", error);
 
       if (axios.isAxiosError(error) && error.response) {
         const errorMessage = error.response.data.message || '로그인에 실패했습니다.';
@@ -250,9 +400,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
-    console.log('🚪 로그아웃 처리 중...');
+    console.log('🚪 Admin 로그아웃 처리 중...');
     
-    // SSE 연결 해제
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
@@ -264,7 +413,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     setIsAuthenticated(false);
     
-    console.log('✅ 로그아웃 완료');
+    console.log('✅ Admin 로그아웃 완료');
   };
 
   const checkAuth = async (): Promise<boolean> => {
@@ -276,21 +425,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
 
-      // 실제 토큰 검증을 원한다면 백엔드 API 호출
-      // const response = await axios.post(`${API_BASE_URL}/api/auth/validate-token`, 
-      //   { token: accessToken });
+      // 실제 토큰 검증 API 호출 (옵션)
+      // const response = await authenticatedFetch(`${API_BASE_URL}/api/auth/validate-token`);
+      // if (!response.ok) throw new Error('Token validation failed');
       
       setIsAuthenticated(true);
       return true;
     } catch (error) {
-      console.error("인증 확인 에러:", error);
+      console.error("Admin 인증 확인 에러:", error);
       setIsAuthenticated(false);
       return false;
     }
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, login, logout, checkAuth }}>
+    <AuthContext.Provider value={{ 
+      isAuthenticated, 
+      isLoading, 
+      login, 
+      logout, 
+      checkAuth,
+      reissueToken,        // 추가
+      authenticatedFetch,  // 추가
+      manualReconnectSSE 
+    }}>
       {children}
     </AuthContext.Provider>
   );
