@@ -92,3 +92,27 @@ export const fetchCoinPrices = async () => {
         throw err; // 에러를 호출한 쪽으로 전달
     }
 };
+
+// Bank 대시 보드 정보 가져오기
+export async function fetchBankDashboard() {
+    const token = sessionStorage.getItem('accessToken');
+
+    if (!token) {
+        throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/bank/dashboard`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || '은행 대시보드 정보 조회를 실패하였습니다.');
+    }
+
+    return response.json();
+}

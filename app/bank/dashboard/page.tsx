@@ -3,24 +3,43 @@
 import { BarChart3, Briefcase, Package, Building2,TrendingUp } from "lucide-react"
 import { StatCard } from "@/components/dashboard/statCard";
 import { CoinUsageBar } from "@/components/dashboard/coinUsageBar";
-import {fetchAllCoinUsage, fetchCoinPrices} from "@/api/dashboard";
+import {fetchAllCoinUsage, fetchBankDashboard, fetchCoinPrices, fetchCoinTotalCounts} from "@/api/dashboard";
 import {useEffect, useState} from "react";
 
 export default function BankDashBoard() {
   const [coinUsageList, setCoinUsageList] = useState<CoinUsageDto[]>([]);
   const [coinUsageData, setCoinUsageData] = useState<CoinUsageDto[]>([]);
   const [coinTotal, setCoinTotal] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [prices, setPrices] = useState<{ [key: string]: number }>({
     "KRW-SOL": 0,
     "KRW-XRP": 0,
     "KRW-USDT": 0,
   });
-
+  const [dashboardData, setDashboardData] = useState<{
+    bankCount: number;
+    productCount: number;
+    bankTokenCount: number;
+  } | null>(null);
 
   interface CoinUsageDto {
     currency: string;
     usageAmount: number;
   }
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const data = await fetchBankDashboard();
+        setDashboardData(data);
+      } catch (error) {
+        console.error("대시보드 데이터 조회 실패:", error);
+      }
+    }
+
+    fetchData();
+  }, []);
+
 
   const getColorByCoin = (currency: string) => {
     switch (currency.toUpperCase()) {
@@ -41,6 +60,18 @@ export default function BankDashBoard() {
       default: return currency;
     }
   };
+
+  // 은행 대시보드 데이터 가져오기
+  useEffect(() => {
+    fetchBankDashboard()
+        .then((data) => {
+          setCoinTotal(data.userCoinTotal);
+        })
+        .catch((err) => {
+          setError(err.message || "조회 실패");
+        });
+  }, []);
+
 
   useEffect(() => {
     fetchAllCoinUsage()
@@ -64,13 +95,10 @@ export default function BankDashBoard() {
     return () => clearInterval(interval);
   }, []);
 
-  const totalInKRW = coinTotal
-      ? Object.entries(coinTotal).reduce((acc, [symbol, amount]) => {
-        const numericAmount = typeof amount === "number" ? amount : 0;
-        const price = prices[`KRW-${symbol.toUpperCase()}`] ?? 0;
-        return acc + numericAmount * price;
-      }, 0)
-      : 0;
+  const totalUsageInKRW = coinUsageList.reduce((acc, coin) => {
+    const price = prices[`KRW-${coin.currency.toUpperCase()}`] ?? 0;
+    return acc + coin.usageAmount * price;
+  }, 0);
 
 
 
@@ -78,30 +106,46 @@ export default function BankDashBoard() {
     <div className="p-8 bg-gray-50">
       <div className="grid grid-cols-4 gap-6 mb-12">
         <StatCard
-          icon={<BarChart3 size={22} className="text-white" />}
-          label="총 통화량"
-          value="15,000,000,000,000KRW"
+            icon={<BarChart3 size={22} className="text-white" />}
+            label="총 코인 거래량"
+            value={
+              totalUsageInKRW > 0
+                  ? `${totalUsageInKRW.toLocaleString()} KRW`
+                  : "로딩 중..."
+            }
+            className="text-center"
+        />
+
+        <StatCard
+          icon={<Briefcase size={22} className="text-white" />}
+          label="등록된 은행 토큰 수"
+          value={
+            dashboardData
+                ? `${dashboardData.bankTokenCount.toLocaleString()}개`
+                : "로딩 중..."
+          }
           className="text-center"
         />
 
-        <StatCard 
-          icon={<Briefcase size={22} className="text-white" />} 
-          label="은행토큰 등록 및 변경 대기" 
-          value="12건" 
+        <StatCard
+          icon={<Package size={22} className="text-white" />}
+          label="총 상품 수"
+          value={
+            dashboardData
+                ? `${dashboardData.productCount.toLocaleString()}개`
+                : "로딩 중..."
+          }
           className="text-center"
         />
 
-        <StatCard 
-          icon={<Package size={22} className="text-white" />} 
-          label="총 상품 수" 
-          value="78개" 
-          className="text-center"
-        />
-
-        <StatCard 
-          icon={<Building2 size={22} className="text-white" />} 
-          label="CBDC 참여 은행 개수" 
-          value="14개" 
+        <StatCard
+          icon={<Building2 size={22} className="text-white" />}
+          label="CBDC 참여 은행 개수"
+          value={
+            dashboardData
+                ? `${dashboardData.bankCount.toLocaleString()}개`
+                : "로딩 중..."
+          }
           className="text-center"
         />
       </div>
