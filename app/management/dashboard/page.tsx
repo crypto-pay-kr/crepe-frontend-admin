@@ -83,7 +83,7 @@ export default function UserDashBoard() {
     };
 
     fetchPrices();
-    const interval = setInterval(fetchPrices, 3000);
+    const interval = setInterval(fetchPrices, 3600000);
     return () => clearInterval(interval);
   }, []);
 
