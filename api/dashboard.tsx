@@ -3,7 +3,7 @@ const COIN_PRICE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 
 export async function fetchRoleCounts(): Promise<Record<string, number>> {
-    const token = localStorage.getItem('accessToken');
+    const token = sessionStorage.getItem('accessToken');
 
     if (!token) {
         throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
@@ -26,7 +26,7 @@ export async function fetchRoleCounts(): Promise<Record<string, number>> {
 }
 
 export async function fetchCoinTotalCounts(): Promise<Record<string, number>> {
-    const token = localStorage.getItem('accessToken');
+    const token = sessionStorage.getItem('accessToken');
 
     if (!token) {
         throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
