@@ -45,7 +45,7 @@ export async function fetchWithConfig(
   
   // Handle authorization except for token reissue endpoint
   if (!url.includes('/user/reissue')) {
-    const accessToken = localStorage.getItem('accessToken');
+    const accessToken = sessionStorage.getItem('accessToken');
     if (accessToken) {
       headers.set('Authorization', `Bearer ${accessToken}`);
     }
@@ -66,13 +66,13 @@ export async function fetchWithConfig(
     if (response.status === 401) {
       if (url === '/user/reissue') {
         window.location.href = '/login';
-        localStorage.removeItem('accessToken');
+        sessionStorage.removeItem('accessToken');
         return;
       } else {
         try {
           const tokenResponse = await User.reissueToken();
           if (tokenResponse && tokenResponse.accessToken) {
-            localStorage.setItem('accessToken', tokenResponse.accessToken);
+            sessionStorage.setItem('accessToken', tokenResponse.accessToken);
             // Retry the original request (could be implemented)
           }
         } catch (error) {
@@ -83,7 +83,7 @@ export async function fetchWithConfig(
     }
     
     if (response.status === 502) {
-      localStorage.removeItem('accessToken');
+      sessionStorage.removeItem('accessToken');
       window.location.href = '/login';
       return;
     }

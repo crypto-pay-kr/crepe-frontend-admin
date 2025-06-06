@@ -15,32 +15,7 @@ export default function MerchantAccountInfo() {
     <AccountInfoComponent
       title="가맹점 계좌 정보"
       backPath="/management/store"
-      accounts={merchantAccounts}
       onDisconnect={handleDisconnectMerchantAccount}
     />
   )
 }
-
-// 가맹점 계좌 데이터 예시
-const merchantAccounts = [
-  {
-    coinName: "비트코인",
-    depositorName: "비트코인마트",
-    coinAccount: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
-    tagAccount: "",
-    balance: {
-      fiat: "12,543,000 KRW",
-      crypto: "0.3 BTC",
-    },
-  },
-  {
-    coinName: "이더리움",
-    depositorName: "비트코인마트",
-    coinAccount: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
-    tagAccount: "",
-    balance: {
-      fiat: "3,421,000 KRW",
-      crypto: "1.5 ETH",
-    },
-  },
-]

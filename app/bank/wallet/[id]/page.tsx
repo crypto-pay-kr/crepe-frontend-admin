@@ -15,11 +15,9 @@ interface BankAccountResponse {
   balance: string;
   status: string;
 }
-
-// 계좌 정보 타입
 interface AccountInfo {
   coinName: string;
-  currency: string; // currency 필드 추가
+  currency: string;
   depositorName: string;
   coinAccount: string;
   tagAccount?: string;
@@ -27,7 +25,7 @@ interface AccountInfo {
     fiat: string;
     crypto: string;
   };
-  status: string;
+  status: 'APPROVED' | 'ACTIVE' | 'REGISTERING' | 'REJECTED' | 'NOT_REGISTERED' | string; 
 }
 
 export default function BankWallet() {
@@ -48,7 +46,7 @@ export default function BankWallet() {
   useEffect(() => {
     const fetchBankAccounts = async () => {
       try {
-        const token = localStorage.getItem('accessToken');
+        const token = sessionStorage.getItem('accessToken');
         
         if (!token) {
           throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
@@ -81,7 +79,7 @@ export default function BankWallet() {
           },
           status: account.status
         }));
-        
+        console.log("은행 계좌 정보 조회 성공:", formattedAccounts);
         setAccounts(formattedAccounts);
       } catch (err: any) {
         console.error("은행 계좌 정보 조회 실패:", err);
@@ -97,7 +95,7 @@ export default function BankWallet() {
   // 은행용 계좌 연결 해제 처리
   const handleDisconnectBankAccount = async (accountId: string, coinName: string) => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       
       if (!token) {
         throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');

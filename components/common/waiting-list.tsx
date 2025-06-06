@@ -1,7 +1,7 @@
 'use client'
 
 import { ChevronLeft, ChevronRight, Search } from "lucide-react"
-import { useState } from "react"
+import {useEffect, useState} from "react"
 import { ConfirmationModal } from "@/components/common/confirm-modal"
 
 // 대기 목록 항목의 기본 타입 정의
@@ -12,6 +12,7 @@ export interface WaitingListItemBase {
   type: string; // 타입 필드 (유저/가맹점 또는 은행 종류 등)
   approveType: string;
   approveButtonText: string;
+
 }
 
 // 추가 필드를 위한 제네릭 타입 정의
@@ -40,6 +41,9 @@ interface WaitingListComponentProps<T> {
   rejectModalTitle?: string;
   rejectModalTargetType?: string;
   rejectModalActionText?: string;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
 }
 
 export default function WaitingListComponent<T>({
@@ -55,11 +59,12 @@ export default function WaitingListComponent<T>({
   extraActionButton,
   rejectModalTitle = "거절 확인",
   rejectModalTargetType = "요청",
-  rejectModalActionText = "거절"
+  rejectModalActionText = "거절", currentPage, totalPages, onPageChange,
 }: WaitingListComponentProps<T>) {
   const [searchText, setSearchText] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<WaitingListItem<T> | null>(null);
+
 
   const handleRejectClick = (item: WaitingListItem<T>) => {
     setSelectedItem(item);
@@ -89,7 +94,7 @@ export default function WaitingListComponent<T>({
             <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
             <div className="flex items-center gap-2 bg-white rounded-full px-4 py-2 shadow-sm border border-gray-100 hover:shadow-md transition-all">
               {subtitleIcon}
-              <span className="text-sm font-medium">{subtitle}: {items.length}개</span>
+              <span className="text-sm font-medium">  {subtitle}: {items?.length ?? 0}개개</span>
             </div>
           </div>
         </div>
@@ -121,89 +126,104 @@ export default function WaitingListComponent<T>({
           <div className="overflow-x-auto rounded-lg border border-gray-100">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50">
-                  {columns.map((column) => (
-                    <th key={column.key} className={`py-3 px-4 text-left font-bold text-gray-500 text-sm ${column.className || ''}`}>
+              <tr className="bg-gray-50">
+                {columns.map((column) => (
+                    <th key={column.key}
+                        className={`py-3 px-4 text-left font-bold text-gray-500 text-sm ${column.className || ''}`}>
                       {column.header}
                     </th>
-                  ))}
-                  <th className="py-3 px-4 text-middle font-bold text-gray-500 text-sm">관리</th>
-                </tr>
+                ))}
+                <th className="py-3 px-4 text-middle font-bold text-gray-500 text-sm">관리</th>
+              </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
-                  <tr key={item.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
+              {(items ?? []).map((item) => (
+                  <tr key={item.id}
+                      className="border-t border-gray-100 hover:bg-gray-50 transition-colors font-medium text-black">
                     {columns.map((column) => (
-                      <td key={`${item.id}-${column.key}`} className={`py-4 px-4 ${column.className || ''}`}>
-                        {column.render 
-                          ? column.render(item[column.key as keyof typeof item], item)
-                          : (item[column.key as keyof typeof item] as React.ReactNode)}
-                      </td>
+                        <td key={`${item.id}-${column.key}`} className={`py-4 px-4 ${column.className || ''}`}>
+                          {column.render
+                              ? column.render(item[column.key as keyof typeof item], item)
+                              : (item[column.key as keyof typeof item] as React.ReactNode)}
+                        </td>
                     ))}
                     <td className="py-4 px-4">
                       <div className="flex justify-end gap-2">
                         <button
-                          onClick={() => handleRejectClick(item)}
-                          className="px-3 py-1.5 rounded-md text-sm font-medium border border-pink-500 text-pink-500 hover:bg-pink-50 transition-all flex items-center gap-1.5"
+                            onClick={() => handleRejectClick(item)}
+                            className="px-3 py-1.5 rounded-md text-sm font-medium border border-pink-500 text-pink-500 hover:bg-pink-50 transition-all flex items-center gap-1.5"
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                               xmlns="http://www.w3.org/2000/svg">
+                            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                                  strokeLinejoin="round"/>
                           </svg>
                           거절하기
                         </button>
                         <button
-                          onClick={() => onApprove(item.id, item.approveType, item)}
-                          className="px-3 py-1.5 rounded-md text-sm font-medium border border-gray-400 text-gray-600 hover:bg-gray-50 hover:border-gray-500 transition-all flex items-center gap-1.5"
+                            onClick={() => onApprove(item.id, item.approveType, item)}
+                            className="px-3 py-1.5 rounded-md text-sm font-medium border border-gray-400 text-gray-600 hover:bg-gray-50 hover:border-gray-500 transition-all flex items-center gap-1.5"
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M5 12l5 5 9-9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                               xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 12l5 5 9-9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                                  strokeLinejoin="round"/>
                           </svg>
                           {item.approveButtonText}
                         </button>
                       </div>
                     </td>
                   </tr>
-                ))}
+              ))}
               </tbody>
             </table>
           </div>
-          
+
           {/* 페이지네이션 */}
-          <div className="flex flex-col items-center mt-6 gap-4">
-            <nav className="flex items-center justify-center gap-1">
-              <button className="w-9 h-9 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 transition-colors">
-                <ChevronLeft size={18} />
-              </button>
-              
-              <button className="w-9 h-9 flex items-center justify-center rounded-md bg-pink-500 text-white font-medium">
-                1
-              </button>
-              
-              <button className="w-9 h-9 flex items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 transition-colors">
-                2
-              </button>
-              
-              <button className="w-9 h-9 flex items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 transition-colors">
-                3
-              </button>
-              
-              <button className="w-9 h-9 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 transition-colors">
-                <ChevronRight size={18} />
-              </button>
-            </nav>
-          </div>
+          {totalPages > 1 && (
+              <div className="flex flex-col items-center mt-6 gap-4">
+                <nav className="flex items-center justify-center gap-1">
+                  <button
+                      onClick={() => onPageChange(currentPage - 1)}
+                      disabled={currentPage === 0}
+                      className="w-9 h-9 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 transition-colors"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => (
+                      <button
+                          key={i}
+                          onClick={() => onPageChange(i)}
+                          className={`w-9 h-9 flex items-center justify-center rounded-md transition-colors font-medium
+            ${i === currentPage ? "bg-pink-500 text-white" : "text-gray-600 hover:bg-gray-100"}`}
+                      >
+                        {i + 1}
+                      </button>
+                  ))}
+
+                  <button
+                      onClick={() => onPageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages - 1}
+                      className="w-9 h-9 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 transition-colors"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </nav>
+              </div>
+          )}
         </div>
       </div>
-      
+
       {/* 확인 모달 */}
       <ConfirmationModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onConfirm={handleConfirmReject}
-        title={rejectModalTitle}
-        targetName={`${selectedItem?.name || ""} (${selectedItem?.type || ""})`}
-        targetType={rejectModalTargetType}
-        actionText={rejectModalActionText}
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          onConfirm={handleConfirmReject}
+          title={rejectModalTitle}
+          targetName={`${selectedItem?.name || ""} (${selectedItem?.type || ""})`}
+          targetType={rejectModalTargetType}
+          actionText={rejectModalActionText}
       />
     </div>
   )

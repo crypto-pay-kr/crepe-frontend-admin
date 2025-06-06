@@ -20,7 +20,6 @@ function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [rememberMe, setRememberMe] = useState(false);
     
     // CAPTCHA 관련 상태
     const [captchaKey, setCaptchaKey] = useState('');
@@ -58,10 +57,6 @@ function LoginPage() {
         
         checkLoginStatus();
         generateCaptcha();
-        
-        // localStorage에서 rememberMe 값 가져오기
-        const savedRememberMe = localStorage.getItem('rememberMe') === 'true';
-        setRememberMe(savedRememberMe);
     }, [router, checkAuth]);
 
     // CAPTCHA 생성 함수
@@ -98,10 +93,7 @@ function LoginPage() {
             // 로그인 요청에 캡차 정보 포함
             await login(loginId, password, captchaKey, captchaValue);
             
-            // 로그인 상태 유지 설정
-            localStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
-            
-            router.push('/dashboard');
+            router.push('/management/dashboard');
         } catch (error) {
             if (error instanceof Error) {
                 // 에러 메시지 간소화
@@ -209,7 +201,7 @@ function LoginPage() {
                                 </div>
                             </div>
                             
-                            {/* CAPTCHA 영역 - 수정된 부분 */}
+                            {/* CAPTCHA 영역 */}
                             <div>
                                 <label className="block text-xs font-medium text-gray-700 mb-1">
                                     보안 코드
@@ -217,7 +209,7 @@ function LoginPage() {
                                 
                                 <div className="flex">
                                     <div className="w-full">
-                                        {/* 캡차 이미지 컨테이너 - 이미지를 컨테이너에 딱 맞게 표시 */}
+                                        {/* 캡차 이미지 컨테이너 */}
                                         <div className="w-full border border-gray-300 rounded-t-lg overflow-hidden h-32 bg-gray-50 flex items-center justify-center">
                                             {isCaptchaLoading ? (
                                                 <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-[#F47C98]"></div>
@@ -260,19 +252,11 @@ function LoginPage() {
                             </div>
                         </div>
 
-                        <div className="flex items-center">
-                            <input
-                                id="remember-me"
-                                name="remember-me"
-                                type="checkbox"
-                                className="h-3 w-3 text-[#F47C98] focus:ring-[#F47C98] border-gray-300 rounded"
-                                checked={rememberMe}
-                                onChange={(e) => setRememberMe(e.target.checked)}
-                                disabled={isLoading}
-                            />
-                            <label htmlFor="remember-me" className="ml-1.5 block text-xs text-gray-700">
-                                로그인 상태 유지
-                            </label>
+                        {/* 세션 기반 로그인 안내 메시지 */}
+                        <div className="text-center">
+                            <span className="text-xs text-gray-500">
+                                🔒 보안을 위해 브라우저 종료 시 자동 로그아웃됩니다
+                            </span>
                         </div>
 
                         <div className="pt-4">

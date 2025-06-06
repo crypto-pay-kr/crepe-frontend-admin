@@ -14,6 +14,7 @@ interface Bank {
   id: number;
   name: string;
   bankPhoneNum: string;
+  imageUrl: string;
   totalSupply: number;
 }
 
@@ -42,7 +43,7 @@ export default function BankManagement({ onShowSuspendedList }: BankManagementPr
     
     try {
       // 로컬 스토리지에서 토큰 가져오기
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       
       if (!token) {
         throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
@@ -62,11 +63,12 @@ export default function BankManagement({ onShowSuspendedList }: BankManagementPr
       
       const data = await response.json();
       
-      // 데이터 유효성 검사 및 변환
+  
       const validBanks = Array.isArray(data) ? data.map(bank => ({
         id: bank.id || 0,
         name: bank.name || '이름 없음',
         bankPhoneNum: bank.bankPhoneNum || '-',
+        imageUrl: bank.imageUrl || '', 
         totalSupply: bank.totalSupply || 0
       })) : [];
       
@@ -95,7 +97,7 @@ export default function BankManagement({ onShowSuspendedList }: BankManagementPr
     if (selectedBank) {
       try {
         // 로컬 스토리지에서 토큰 가져오기
-        const token = localStorage.getItem('accessToken');
+        const token = sessionStorage.getItem('accessToken');
         
         if (!token) {
           throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
@@ -286,12 +288,16 @@ export default function BankManagement({ onShowSuspendedList }: BankManagementPr
                               은행 정지
                             </button>
                             
-                            <Link href={`/bank/management/${bank.id}?name=${encodeURIComponent(bank.name)}`}>
-                              <button className="px-3 py-2 rounded-md text-sm font-medium border border-gray-400 text-gray-600 hover:bg-gray-50 hover:border-gray-500 transition-all flex items-center cursor-pointer">
-                                <CreditCard className="w-4 h-4 mr-2" />
-                                은행 상세 관리
-                              </button>
-                            </Link>
+                            <Link href={`/bank/management/${bank.id}?${new URLSearchParams({
+                                name: bank.name,
+                                phoneNum: bank.bankPhoneNum,
+                                imageUrl: bank.imageUrl || '' // imageUrl 파라미터 추가
+                              }).toString()}`}>
+                                <button className="px-3 py-2 rounded-md text-sm font-medium border border-gray-400 text-gray-600 hover:bg-gray-50 hover:border-gray-500 transition-all flex items-center cursor-pointer">
+                                  <CreditCard className="w-4 h-4 mr-2" />
+                                  은행 상세 관리
+                                </button>
+                              </Link>
                           </div>
                         </td>
                       </tr>
@@ -300,8 +306,6 @@ export default function BankManagement({ onShowSuspendedList }: BankManagementPr
                 </table>
               </div>
             )}
-            
-            {/* 페이지네이션 부분은 필요에 따라 구현 */}
           </div>
         )}
       </div>

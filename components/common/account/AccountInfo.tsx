@@ -3,8 +3,9 @@
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { DisconnectConfirmModal } from "../disconnect-modal"
-import { useState } from "react"
-
+import {useEffect, useState} from "react"
+import {fetchAccountInfo} from "@/api/accountApi";
+import { useParams } from 'next/navigation'
 // 계좌 정보 타입 정의
 interface AccountBalance {
   fiat: string;
@@ -20,7 +21,14 @@ interface AccountInfo {
   balance: AccountBalance;
   status: string;
 }
-
+export interface GetAccountInfoResponse {
+  coinName: string;
+  currency: string;
+  address: string;
+  tag: string;
+  balance: string;
+  registryStatus: string;
+}
 interface AccountInfoProps {
   title?: string;
   backPath?: string;
@@ -31,11 +39,33 @@ interface AccountInfoProps {
 export default function AccountInfoComponent({
   title = "계좌 정보",
   backPath = "/management/user",
-  accounts = [],
   onDisconnect = (accountId: string) => console.log(`${accountId} 계좌 연결 해제`)
 }: AccountInfoProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedAccount, setSelectedAccount] = useState<AccountInfo | null>(null)
+  const {id} = useParams();
+  const [accounts, setAccounts] = useState<GetAccountInfoResponse[]>([]);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
+  useEffect(() => {
+
+    const loadAccounts = async () => {
+      try {
+
+        const data = await fetchAccountInfo(Number(id), page, 10);
+        setAccounts(data.content);
+        setTotalPages(data.totalPages);
+      } catch (err) {
+        console.error("불러오기 실패:", err);
+      }
+    };
+
+    loadAccounts();
+  }, [id, page]);
+
+
+
 
   const openModal = (account: AccountInfo) => {
     setSelectedAccount(account)
@@ -110,26 +140,26 @@ export default function AccountInfoComponent({
                     {account.coinName} {account.currency && `(${account.currency})`}
                   </td>
                   <td className="py-4 px-4 text-gray-800 max-w-xs truncate font-mono">
-                    {account.coinAccount === "-" ? (
+                    {account.address === "-" ? (
                       <span className="text-gray-400">미등록</span>
                     ) : (
-                      <span title={account.coinAccount}>{account.coinAccount}</span>
+                      <span title={account.address}>{account.address}</span>
                     )}
                   </td>
-                  <td className="py-4 px-4 text-gray-800 font-mono">{account.tagAccount || "-"}</td>
+                  <td className="py-4 px-4 text-gray-800 font-mono">{account.tag || "-"}</td>
                   <td className="py-4 px-4">
-                    <div className="text-sm text-gray-600">{account.balance.crypto}</div>
-                    {account.balance.fiat !== "0 KRW" && (
-                      <div className="text-xs text-gray-500">{account.balance.fiat}</div>
+                    <div className="text-sm text-gray-600">{account.balance}</div>
+                    {account.balance !== "0 KRW" && (
+                      <div className="text-xs text-gray-500">{account.balance}</div>
                     )}
                   </td>
                   <td className="py-4 px-4">
-                    {getStatusBadge(account.status)}
+                    {getStatusBadge(account.registryStatus)}
                   </td>
                   <td className="py-4 px-4 text-center">
-                    {account.coinAccount !== "-" && account.status === 'ACTIVE' && (
+                    {account.address !== "-" && account.registryStatus === 'ACTIVE' && (
                       <button
-                        onClick={() => openModal(account)}
+                        // onClick={() => openModal(account)}
                         className="px-4 py-1 rounded-md text-sm border border-gray-300 hover:bg-gray-50"
                       >
                         연결 해제
